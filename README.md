@@ -136,6 +136,32 @@ promote            after the finality window, by a stranger: the hold returned t
 
 That round asserts one thing: pages that are not what their agreed labels say get null figures, `scope_ok` and `kind_matches` false, and the code holds the money. The three-agreement live arc (a QUALIFIED outcome challenged and settled at the lower independent figure, a NOT_QUALIFIED shortfall returning the reward, and an uncorroborated record held and reclaimed) is driven by `web/scripts/arc.mjs` against this contract and is recorded here when it completes.
 
+**Wall sweep and money loop, 2026-09-06, same deployment, three wallets.** Thirteen refusals were driven on-chain; every one finalized as a leader ERROR carrying the contract's own `[EXPECTED]` sentence, read back from the receipts:
+
+```text
+funding is exactly the maximum reward: send 10000000000000000 atto
+an agreement needs two parties — the operator cannot fund its own draft
+nothing to fund in FUNDED · nothing to fund in CANCELLED
+threshold must be 5000-10000 basis points
+the basis needs at least one INDEPENDENT origin — an outcome the operator
+  alone attests cannot be paid
+min_independent is 3 but the basis has only 1 independent publisher(s) —
+  the agreement could never be satisfied
+only the operator cancels a draft · only the operator submits evidence
+source 0: evil.io is outside the agreed evidence basis — the panel reads
+  only the origins both parties signed        (tx 0x212ba3df…1ff42 — the
+  query-borne-@ URL that once fooled _split_url, refused live)
+source 1: https://sat.example.org/report is already in the record — one
+  page is one source, however it is spelled   (tx 0x3530b88c…48a63, S35)
+this evidence version was already judged — submit a new version
+nothing is pending finality · nothing to settle in FUNDED
+only a party challenges · the submission grace runs until 1788684355
+```
+
+(Walls check in order, so two calls were answered by an earlier wall than the one they aimed at — the pre-deadline adjudication by "submit evidence first", the stranger's bonded challenge by the party wall; the deadline and status variants are pinned in the direct suite.)
+
+The same run drove the lifecycle verbs that need no hosted evidence: `vrd-000003` drafted and cancelled by its operator after a stranger's cancel was refused; a stranger reclaimed `vrd-000001`'s held reward to the funder's ledger (tx `0x30d4cd01…9f56d`) and the funder claimed it out through the EOA proxy (tx `0xa14ecf39…1532a`); after the bench's grace lapsed, the bench was reclaimed and claimed the same way. Final stats on the deployment of record: `{"agreements": 3, "funded": 2, "settled": 0, "qualified": 0, "paid_atto": "0", "escrow_atto": "0"}` — **every atto that entered the contract left through `claim()`; custody zero.**
+
 **The preliminary cut**, `0x4491182451E0Be4F34cdBd2ecFBdfC0cbE2E39A2` (archived in `docs/DEPLOYMENT.md`), ran the first panel round and the full money loop on 2026-09-05:
 
 ```text
