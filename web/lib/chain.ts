@@ -81,6 +81,37 @@ export const STUDIO_NEXT_PARAMS = {
   nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 },
 } as const;
 
+/**
+ * Did the wallet just say "I have never heard of this chain"?
+ *
+ * EIP-3326 assigns that answer code 4902, and a wallet that already knows a
+ * network never sends it — which is why every sibling app, whose users had
+ * StudioNet installed long ago, could check `err.code === 4902` and never
+ * notice that MetaMask does NOT put the code at the top level. Measured on
+ * MetaMask against Studio Next (a chain nobody's wallet has yet): the switch
+ * request rejects with `code: -32603` and the 4902 nested under
+ * `data.originalError`, with the message "Unrecognized chain ID "0xf22d".
+ * Try adding the chain using wallet_addEthereumChain first." Checking the
+ * top-level code alone let that message reach the user verbatim and the
+ * add-network prompt never opened. Rabby and Coinbase Wallet each spell the
+ * nesting slightly differently, so the code is looked for at every level the
+ * major wallets use and the message is the last resort.
+ */
+export function isUnknownChainError(err: unknown): boolean {
+  const e = err as {
+    code?: unknown;
+    message?: unknown;
+    data?: { originalError?: { code?: unknown; message?: unknown }; code?: unknown };
+    cause?: { code?: unknown; message?: unknown };
+  } | undefined;
+  const codes = [e?.code, e?.data?.originalError?.code, e?.data?.code, e?.cause?.code];
+  if (codes.some((c) => c === 4902 || c === "4902")) return true;
+  const text = [e?.message, e?.data?.originalError?.message, e?.cause?.message]
+    .filter((m) => typeof m === "string")
+    .join(" ");
+  return /unrecognized chain|wallet_addEthereumChain|\b4902\b/i.test(text);
+}
+
 /** 0x1234ab…cdef — the display form of a connected identity. */
 export function truncAddr(addr: string): string {
   return addr.length > 13 ? `${addr.slice(0, 8)}…${addr.slice(-4)}` : addr;

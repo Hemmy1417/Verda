@@ -31,6 +31,7 @@ import {
   CHAIN_HEX,
   STUDIO_NEXT,
   STUDIO_NEXT_PARAMS,
+  isUnknownChainError,
   walletErrorMessage,
 } from "./chain";
 
@@ -70,15 +71,26 @@ async function ensureChain(provider: Eip1193): Promise<void> {
       params: [{ chainId: CHAIN_HEX }],
     });
   } catch (err: any) {
-    // 4902 = the wallet has never heard of this chain; offer to add it.
-    if (err?.code === 4902) {
+    // The wallet has never heard of Studio Next: offer to add it. The 4902
+    // that says so is nested by MetaMask (see isUnknownChainError), which is
+    // exactly how the add-network prompt failed to open on the first live
+    // connection to this chain.
+    if (!isUnknownChainError(err)) throw err;
+    await provider.request({
+      method: "wallet_addEthereumChain",
+      params: [STUDIO_NEXT_PARAMS],
+    });
+    // Most wallets switch to a network they have just added; the ones that
+    // do not need to be asked again, and a wallet that refuses here reports
+    // itself through chainOk rather than through an exception.
+    try {
       await provider.request({
-        method: "wallet_addEthereumChain",
-        params: [STUDIO_NEXT_PARAMS],
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: CHAIN_HEX }],
       });
-      return;
+    } catch {
+      /* the network check after adoption reports the outcome */
     }
-    throw err;
   }
 }
 
