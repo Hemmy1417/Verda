@@ -8,7 +8,7 @@
 
 Environmental money is committed before anyone can verify the outcome, and afterwards "did they restore 500 hectares?" means reading satellite summaries, field audits and project reports that disagree. Verda locks funding against a predefined outcome, has a GenLayer validator panel fetch and read the evidence itself, and lets deterministic contract code turn the verified figure into payment. The panel answers what happened; the contract answers what is owed.
 
-**Contract** v0.1.0: `0x397bd60cF62755C281a9a24C6398a316F7814a5e` on GenLayer Studio Next (chain 61997; deployed source byte-verified against this repository with `node web/scripts/deploy.mjs verify`; the preliminary cut `0x4491…39A2` that ran the first live round is archived in `docs/DEPLOYMENT.md`). Live app: pending the Vercel deployment.
+**Contract** v0.1.0: `0x397bd60cF62755C281a9a24C6398a316F7814a5e` on GenLayer Studio Next (chain 61997; deployed source byte-verified against this repository with `node web/scripts/deploy.mjs verify`; the preliminary cut `0x4491…39A2` that ran the first live round is archived in `docs/DEPLOYMENT.md`). Live app: [verda-one.vercel.app](https://verda-one.vercel.app) — production-verified: all routes serve, the same-origin `/api/rpc` proxy refuses non-read methods under Vercel's runtime, and the docket and every agreement page render the full on-chain record, including both adjudication rounds of the challenged agreement with their recorded-versus-new source rows.
 
 ## What it is
 
