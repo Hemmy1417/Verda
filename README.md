@@ -117,7 +117,26 @@ FUNDED --reclaim (after deadline + grace)--> RECLAIMED                          
 
 ## Verified end-to-end
 
-The first panel round on Studio Next, driven against `0x4491182451E0Be4F34cdBd2ecFBdfC0cbE2E39A2` on 2026-09-05 with three wallets (operator `0x86dD…18b5`, funder `0x57a7…657C`, a stranger for the permissionless call):
+**Round zero on the deployment of record**, `0x397bd60cF62755C281a9a24C6398a316F7814a5e`, 2026-09-06, three wallets (operator `0x86dD…18b5`, funder `0x57a7…657C`, a stranger for every permissionless call). The operator filed three readable pages that were not evidence at all (a sibling project's documentation, mirrored on the three agreed origins) under the agreed labels:
+
+```text
+draft_agreement    vrd-000001 "Rio Verde restoration, block RV-7 (round zero)" · 500 hectares · 90% · 0.05 GEN
+fund               0.05 GEN locked by the funder wallet
+submit_evidence    v1 · three pages on the agreed origins, labelled satellite / assessment / report · claimed 463
+adjudicate         tx 0x50cac9c8…b5ff · MAJORITY_AGREE · leader SUCCESS
+                   EV-001 independent · read · no figure · not on scope · not what its label says
+                   EV-002 independent · read · no figure · not on scope · not what its label says
+                   EV-003 operator's own · read · no figure · not on scope · not what its label says
+                   evidence INSUFFICIENT · conflicts SCOPE_MISMATCH, SOURCE_MISLABELLED · score 0
+                   derived: INCONCLUSIVE · EVIDENCE_INSUFFICIENT · verified 0
+promote            after the finality window, by a stranger: the hold returned the agreement to FUNDED; nothing moved
+```
+
+> "All sources provided are technical documentation and source code for a financial adjudication software project named 'Adjudex' and contain no data regarding forest restoration in Para, Brazil. The sources are entirely unrelated to the project defined in the terms, resulting in a total failure to establish the outcome."
+
+That round asserts one thing: pages that are not what their agreed labels say get null figures, `scope_ok` and `kind_matches` false, and the code holds the money. The three-agreement live arc (a QUALIFIED outcome challenged and settled at the lower independent figure, a NOT_QUALIFIED shortfall returning the reward, and an uncorroborated record held and reclaimed) is driven by `web/scripts/arc.mjs` against this contract and is recorded here when it completes.
+
+**The preliminary cut**, `0x4491182451E0Be4F34cdBd2ecFBdfC0cbE2E39A2` (archived in `docs/DEPLOYMENT.md`), ran the first panel round and the full money loop on 2026-09-05:
 
 ```text
 draft_agreement    vrd-000001 · 500 hectares · 90.00% threshold · 0.05 GEN reward · deadline set
@@ -140,7 +159,7 @@ claim              the funder's wallet: claimed_atto 50000000000000000 · ledger
 
 > "EV-001 and EV-002 are Adjudex product/specification documents, not evidence about Rio Verde restoration block RV-7 in Para, Brazil, and they state no achieved hectares for this project by the deadline. EV-001 is not a satellite-derived measurement and EV-002 is not a third-party assessment of restoration outcomes, so the record does not establish the outcome; EV-003 was unreachable and adds no usable evidence."
 
-That round asserts exactly one thing about the panel: given pages that were not what their agreed labels said, it returned null figures with `scope_ok` and `kind_matches` false and the code held the money. The three-agreement live arc (a QUALIFIED outcome challenged and settled at the lower independent figure, a NOT_QUALIFIED shortfall returning the reward, and an uncorroborated record held and reclaimed) is driven by `web/scripts/arc.mjs` and recorded here when it completes.
+The claims that run asserts: the consensus clock's nondeterministic round produced an agreed epoch; a payable deposit was recorded exactly; a 16-validator panel agreed on readings that held the money; the permissionless reclaim credited the funder; and `claim()` paid an externally owned wallet from the contract with custody ending at zero.
 
 ## Tests
 
