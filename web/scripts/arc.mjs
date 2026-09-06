@@ -14,9 +14,13 @@
  *   ACT II  rv-12 — NOT_QUALIFIED. 410 of 500 ha is below the 90% bar; the
  *                   whole reward returns to the funder.
  *   ACT III rv-7b — the S34 floor. Only the operator's report is readable;
- *                   the independent URL 404s. INCONCLUSIVE · UNCORROBORATED
- *                   holds, the agreement returns to FUNDED, and after the
- *                   grace anyone reclaims the reward for the funder.
+ *                   the independent URL 404s. The hold is INCONCLUSIVE with
+ *                   either honest reason: the panel may call a one-voice
+ *                   record INSUFFICIENT (its prompt teaches exactly that)
+ *                   before the code can count publishers and say
+ *                   UNCORROBORATED. Both branches pay nobody; the agreement
+ *                   returns to FUNDED, and after the grace anyone reclaims
+ *                   the reward for the funder.
  *
  * Walls (writes the contract must refuse) are proven between the acts.
  * Every step is idempotent and the run is RESUMABLE: state is read from the
@@ -472,7 +476,15 @@ async function main() {
      src(STAT("rv-7/operator-completion-report.txt"), "Project completion report, RV-7")],
     480, null);
   let c = await adjudicateAndPromote(C, "INCONCLUSIVE", 0, "act III");
-  expect(c.status === "FUNDED" && c.verdict === "INCONCLUSIVE" && c.hold_reason === "UNCORROBORATED", "act III: the hold returned the agreement to FUNDED with hold_reason UNCORROBORATED");
+  // Either hold reason is the floor holding: EVIDENCE_INSUFFICIENT when the
+  // panel itself calls the one-voice record insufficient (the derivation's
+  // first branch), UNCORROBORATED when the publisher count decides. The
+  // direct suite pins each branch deterministically; live, the model speaks
+  // first.
+  expect(c.status === "FUNDED" && c.verdict === "INCONCLUSIVE"
+      && (c.hold_reason === "UNCORROBORATED" || c.hold_reason === "EVIDENCE_INSUFFICIENT"),
+    "act III: the hold returned the agreement to FUNDED with a corroboration-class hold reason");
+  log(`   act III hold reason live: ${c.hold_reason}`);
   await wall("reclaim-before-grace", ST, "reclaim", [C]);
   await waitUntil(c.deadline_epoch + W, "act III: the submission grace");
   await write(ST, "reclaim", [C], 0n, async () => (await agreement(C)).status === "RECLAIMED");

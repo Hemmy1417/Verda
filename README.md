@@ -134,7 +134,50 @@ promote            after the finality window, by a stranger: the hold returned t
 
 > "All sources provided are technical documentation and source code for a financial adjudication software project named 'Adjudex' and contain no data regarding forest restoration in Para, Brazil. The sources are entirely unrelated to the project defined in the terms, resulting in a total failure to establish the outcome."
 
-That round asserts one thing: pages that are not what their agreed labels say get null figures, `scope_ok` and `kind_matches` false, and the code holds the money. The three-agreement live arc (a QUALIFIED outcome challenged and settled at the lower independent figure, a NOT_QUALIFIED shortfall returning the reward, and an uncorroborated record held and reclaimed) is driven by `web/scripts/arc.mjs` against this contract and is recorded here when it completes.
+That round asserts one thing: pages that are not what their agreed labels say get null figures, `scope_ok` and `kind_matches` false, and the code holds the money.
+
+**The fixture arc, 2026-09-06/07, same deployment** (`web/scripts/arc.mjs`, evidence pinned to commit `442874f8` and fetched by every validator from the three agreed origins; thirteen further walls refused between the acts):
+
+```text
+ACT I — vrd-000006 "Rio Verde restoration, block RV-7" · 500 ha · 90% · 0.05 GEN
+  round 1   panel read both fixture pages itself: QUALIFIED · verified 463
+  challenge the funder bonded 0.05 GEN and added ONE new source (the
+            independent field assessment, stating 460)
+  round 2   RE_ADJUDICATION of round 1: rows 1-2 tagged RECORDED — excerpt
+            bytes and fetch epoch exactly round one's, not refetched — row 3
+            tagged NEW; two independent publishers within tolerance, verified
+            moved to the LOWER figure: 460
+  bond      the figure changed, so the bond returned to the challenger
+  settle    QUALIFIED 460/500 -> 0.046 GEN to the operator (claimed,
+            tx 0x5352fa4e…9fb8), 0.004 GEN back to the funder
+
+ACT II — vrd-000007 "rv-12" · 500 ha · 90% · 0.05 GEN
+  round 1   panel: NOT_QUALIFIED · verified 410 (below the 450 floor)
+  settle    nothing to the operator; the whole reward to the funder
+
+ACT III — vrd-000008 "rv-7b" · the authenticity floor
+  round 1   the independent satellite URL 404s by design; only the operator's
+            own report is readable (figure 480, on scope). The panel called a
+            one-voice record INSUFFICIENT — its prompt teaches exactly that —
+            so the hold landed as INCONCLUSIVE · EVIDENCE_INSUFFICIENT,
+            verified 0, before the code's publisher count could say
+            UNCORROBORATED. Both branches are the floor holding; the direct
+            suite pins each deterministically.
+  promote   the hold returned the agreement to FUNDED; nothing moved
+  reclaim   after the grace, a stranger returned the reward to the funder
+            (tx 0x3b139a9f…e9b8)
+```
+
+The arc also recorded the platform's sharp edge, and the recovery the design requires: one settle finalized `result_name: TIMEOUT` with a SUCCESS leader receipt and **wrote nothing** — the transaction-level result decides, receipts do not — and the permissionless retry settled it for real (tx `0xe3e6fb4e…f7ac`). Ledger reads can lag finalized writes, so the scripts treat state predicates, never receipts, as done.
+
+**Final stats on the deployment of record**, after the funder's closing claim (tx `0xc4f2e83e…f035`, 0.154 GEN — three refunds and the returned bond):
+
+```text
+{"agreements": 8, "funded": 7, "settled": 4, "qualified": 3,
+ "paid_atto": "81000000000000000", "escrow_atto": "0"}
+```
+
+Eight agreements, three of them paid on verified impact (0.081 GEN to operators in total), every hold released, twenty-six distinct refusal walls proven on-chain across the runs, and custody at zero: every atto that entered this contract left through `claim()`.
 
 **Wall sweep and money loop, 2026-09-06, same deployment, three wallets.** Thirteen refusals were driven on-chain; every one finalized as a leader ERROR carrying the contract's own `[EXPECTED]` sentence, read back from the receipts:
 
