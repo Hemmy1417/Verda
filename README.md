@@ -160,6 +160,24 @@ only a party challenges · the submission grace runs until 1788684355
 
 (Walls check in order, so two calls were answered by an earlier wall than the one they aimed at — the pre-deadline adjudication by "submit evidence first", the stranger's bonded challenge by the party wall; the deadline and status variants are pinned in the direct suite.)
 
+**The payout act, 2026-09-06, same deployment.** An agreement whose one independent source is a real public page: 400,000 hectares promised under the Billion Tree Tsunami programme, threshold 80%, reward 0.02 GEN, basis `en.wikipedia.org` as kind `other`. The operator filed the page and claimed 350,000. The panel fetched it itself and returned readings — figure 350,000, on scope, matching its label, record SUFFICIENT, score 90 — and code derived QUALIFIED at the verified figure:
+
+> "The Wikipedia page (EV-001) explicitly states 'Pakistan's Billion Tree Tsunami restores 350,000 hectares of forests and degraded land,' which directly matches the project, region, and period."
+
+Mid-act, the RPC connection dropped after adjudication; promotion, settlement and both claims were then executed by a stranger wallet and the parties **hours later** — the permissionless crank recovering an interrupted lifecycle is itself one of the design's claims. Settlement (tx `0xfe774dc1…3f65`) split pro-rata: **0.0175 GEN to the operator** (350,000/400,000 × 0.02, claimed out in tx `0xf93a06e4…9a245`), 0.0025 GEN back to the funder. Stats after: `qualified: 1, paid_atto: 17500000000000000, escrow_atto: 0`.
+
+**The appeal act, 2026-09-06, same deployment.** A twin agreement driven to FINAL (round one QUALIFIED at 350,000, score 95, its source row tagged `FETCHED · round 1`), then the **funder filed a bonded challenge** (exactly 0.05 GEN, tx `0x85ce79ce…9fa9c`) adding one page from the same agreed publisher. Anyone ran the second panel (tx `0x92779699…b3cfb`), and its dossier is the artifact the appeal model promises — every row names what is historical and what is new:
+
+```text
+round_kind RE_ADJUDICATION · reconsidered_round 1
+EV-001 independent · RECORDED round 1 · figure 350000 · on scope · label fits
+EV-002 independent · NEW round 2      · no figure · not on scope · label fits
+```
+
+> "EV-002 (the Bonn Challenge page) does not state a figure for the project and is about the global initiative, not the specific outcome under adjudication."
+
+The verdict and figure stood, so the bond routed deterministically to the operator; settlement at the second ruling (tx `0x1f5e92ce…8dfd7`) paid the same 0.0175 GEN pro-rata, and both parties claimed out. Stats after both acts: `{"agreements": 5, "funded": 4, "settled": 2, "qualified": 2, "paid_atto": "35000000000000000", "escrow_atto": "0"}` — **custody zero for the third time on this deployment.**
+
 The same run drove the lifecycle verbs that need no hosted evidence: `vrd-000003` drafted and cancelled by its operator after a stranger's cancel was refused; a stranger reclaimed `vrd-000001`'s held reward to the funder's ledger (tx `0x30d4cd01…9f56d`) and the funder claimed it out through the EOA proxy (tx `0xa14ecf39…1532a`); after the bench's grace lapsed, the bench was reclaimed and claimed the same way. Final stats on the deployment of record: `{"agreements": 3, "funded": 2, "settled": 0, "qualified": 0, "paid_atto": "0", "escrow_atto": "0"}` — **every atto that entered the contract left through `claim()`; custody zero.**
 
 **The preliminary cut**, `0x4491182451E0Be4F34cdBd2ecFBdfC0cbE2E39A2` (archived in `docs/DEPLOYMENT.md`), ran the first panel round and the full money loop on 2026-09-05:

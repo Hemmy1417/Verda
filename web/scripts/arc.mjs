@@ -131,11 +131,33 @@ const claimable = async (addr) => BigInt(String(await view("get_claimable", [add
 // The SDK derives both by simulating the write; the deposit is floored
 // because the Studio's own estimate can land at zero.
 async function feesFor(actor, fn, args, value) {
-  const est = await actor.client.estimateTransactionFeesForWrite({
-    address: CONTRACT, functionName: fn, args, value,
-  });
+  // The Studio's simulator occasionally answers "GenVM internal error";
+  // retry it, and for a write that emits no message fall back to the plain
+  // estimate rather than aborting the arc. claim() gets no fallback: its
+  // outgoing transfer NEEDS the allocations only the simulation produces.
+  let lastErr;
+  for (let attempt = 0; attempt < (fn === "claim" ? 6 : 3); attempt++) {
+    try {
+      const est = await actor.client.estimateTransactionFeesForWrite({
+        address: CONTRACT, functionName: fn, args, value,
+      });
+      const feeValue = est.feeValue > FEE_FLOOR ? est.feeValue : FEE_FLOOR;
+      return { distribution: est.distribution, feeValue, messageAllocations: est.messageAllocations };
+    } catch (e) {
+      lastErr = e;
+      const msg = String(e?.details ?? e?.message ?? e);
+      // A contract refusal is deterministic — retrying cannot change it,
+      // and the caller wants the [EXPECTED] sentence, not a retry loop.
+      if (msg.includes("[EXPECTED]") || msg.includes("execution failed")) throw e;
+      log(`  fee simulation unhealthy (${msg.slice(0, 80)}) — retry ${attempt + 1}`);
+      await sleep(5_000 * (attempt + 1));
+    }
+  }
+  if (fn === "claim") throw lastErr;
+  log("  fee simulation exhausted — plain estimate (no message allocations needed here)");
+  const est = await actor.client.estimateTransactionFees();
   const feeValue = est.feeValue > FEE_FLOOR ? est.feeValue : FEE_FLOOR;
-  return { distribution: est.distribution, feeValue, messageAllocations: est.messageAllocations };
+  return { distribution: est.distribution, feeValue };
 }
 
 async function landed(hash, label) {
