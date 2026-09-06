@@ -1,23 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { formatGen } from "../../lib/config";
-import { formatCount, progressBps } from "../../lib/derive";
+import { formatCount } from "../../lib/derive";
 import { getAgreements } from "../../lib/read";
-import { TERMINAL_STATUSES, type AgreementSummary } from "../../lib/types";
-import { ProgressBar, StateNote, StatusChip } from "../components/bits";
+import type { AgreementSummary } from "../../lib/types";
+import { AgreementRows } from "../components/AgreementRows";
+import { StateNote } from "../components/bits";
 
 const PAGE = 20;
 
 /**
- * The discovery table. Comparable rows are a table; magnitude is the length
- * of the verified bar, never a hue. Newest first, twenty at a time, and the
- * next twenty are appended rather than swapped so the reader keeps their place.
+ * Every agreement on the contract as row-cards, newest first, twenty at a
+ * time. The next twenty are appended rather than swapped so the reader keeps
+ * their place. Three read states, three sentences.
  */
 export default function Projects() {
-  const router = useRouter();
   const [rows, setRows] = useState<AgreementSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [state, setState] = useState<"loading" | "ready" | "unreachable">("loading");
@@ -43,18 +41,20 @@ export default function Projects() {
 
   return (
     <main className="page">
-      <div>
-        <p className="eyebrow">Projects</p>
-        <h1 className="heading-lg" style={{ marginTop: 12 }}>Every agreement on the contract.</h1>
-        <p className="muted" style={{ marginTop: 16, maxWidth: "62ch" }}>
-          {state === "ready"
-            ? `${formatCount(total)} agreement${total === 1 ? "" : "s"}, newest first. Terminal states are filled; the verified bar's length is verified over target.`
-            : "Newest first. Terminal states are filled; the verified bar's length is verified over target."}
-        </p>
+      <div className="page-head">
+        <div>
+          <p className="eyebrow">Agreements</p>
+          <h1 className="heading-lg">Every outcome on the contract.</h1>
+          <p className="lede">
+            Newest first. The verified bar is the share of the target the panel confirmed.
+            {state === "ready" && ` ${formatCount(total)} agreement${total === 1 ? "" : "s"} so far.`}
+          </p>
+        </div>
+        <Link href="/create" className="pill">Draft an agreement</Link>
       </div>
 
       {state === "loading" && (
-        <StateNote kind="loading">Reading the agreements from the contract…</StateNote>
+        <StateNote kind="loading">Reading the agreements from the contract.</StateNote>
       )}
       {state === "unreachable" && (
         <StateNote kind="unreachable">
@@ -69,58 +69,10 @@ export default function Projects() {
         </StateNote>
       )}
 
-      {state === "ready" && rows.length > 0 && (
-        <div className="tablewrap">
-          <table className="rows">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Outcome</th>
-                <th className="num">Reward</th>
-                <th>Status</th>
-                <th className="num">Verified</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((a) => {
-                const judged = a.judged_version > 0 && a.verdict !== "";
-                return (
-                  <tr
-                    key={a.agreement_id}
-                    className="rowlink"
-                    onClick={() => router.push(`/projects/${a.agreement_id}`)}
-                  >
-                    <td>
-                      <Link href={`/projects/${a.agreement_id}`} className="title">{a.title}</Link>
-                      <div className="small muted">{a.region}</div>
-                    </td>
-                    <td>
-                      <span className="figure">{formatCount(a.target)}</span>{" "}
-                      <span className="small muted">{a.unit}</span>
-                    </td>
-                    <td className="num">{formatGen(a.max_reward_atto)} GEN</td>
-                    <td>
-                      <StatusChip status={a.status} terminal={TERMINAL_STATUSES.includes(a.status)} />
-                    </td>
-                    <td className="num" style={{ minWidth: 120 }}>
-                      {judged ? formatCount(a.verified_impact) : "—"}
-                      <div style={{ marginTop: 8 }}>
-                        <ProgressBar
-                          bps={judged ? progressBps(a.verified_impact, a.target) : 0}
-                          label={`${a.agreement_id} verified over target`}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {state === "ready" && rows.length > 0 && <AgreementRows rows={rows} />}
 
       {state === "ready" && rows.length < total && (
-        <div>
+        <div className="action-row">
           <button
             className="pill quiet"
             disabled={more}
@@ -129,9 +81,9 @@ export default function Projects() {
               void load(rows.length).finally(() => setMore(false));
             }}
           >
-            {more ? "Reading…" : `Read the next ${Math.min(PAGE, total - rows.length)}`}
+            {more ? "Reading" : `Read the next ${Math.min(PAGE, total - rows.length)}`}
           </button>
-          <span className="small muted" style={{ marginLeft: 16 }}>
+          <span className="small">
             {formatCount(rows.length)} of {formatCount(total)} shown
           </span>
         </div>

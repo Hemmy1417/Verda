@@ -369,7 +369,7 @@ export async function writeAndConfirm({
 
   report({
     stage: "wallet",
-    detail: `Confirm in your wallet — fee deposit ${formatGen(fees.feeValue)} GEN, mostly refunded.`,
+    detail: `Confirm in your wallet; fee deposit ${formatGen(fees.feeValue)} GEN, mostly refunded.`,
   });
 
   let hash = "";
@@ -508,7 +508,7 @@ async function watchFinality(
         stage: "confirmed",
         detail:
           confirmedDetail +
-          " This transaction itself finalized without effect — the state was " +
+          " This transaction itself finalized without effect: the state was " +
           "already produced by another transaction that got there first.",
         hash,
       });
@@ -521,7 +521,7 @@ async function watchFinality(
     detail:
       "The contract reflects this write, and Studio Next has not yet reported " +
       "it finalized. That step almost always follows on its own. Nothing here " +
-      "is polling any more, so refresh in a minute — and treat the write as " +
+      "is polling any more, so refresh in a minute, and treat the write as " +
       "irreversible only once it shows finalized.",
     hash,
   });

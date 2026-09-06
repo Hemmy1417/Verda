@@ -7,6 +7,9 @@
  * contract enforces every window with its own consensus clock, and a boundary
  * computed here from the browser's clock may sit a few minutes from the one
  * the contract sees. The UI says so once, beside the action.
+ *
+ * Copy rules the pages depend on: sentence case, no em dashes, versions
+ * spelled "version 1", enum values never shown as written on-chain.
  */
 import { sameAddress } from "./chain";
 import { formatBps, formatGen, formatStamp } from "./config";
@@ -49,20 +52,36 @@ export function holdSentence(hold: string): string {
   return (HOLD as Record<string, string>)[hold] ?? "";
 }
 
+/** The threshold as a whole-unit floor: ceil(target × bps / 10000). */
+export function thresholdFloor(target: number, thresholdBps: number): number {
+  return Math.ceil((target * thresholdBps) / 10_000);
+}
+
+/** "90% of the target, at least 450 hectares" */
+export function thresholdSentence(ag: Pick<AgreementSummary, "target" | "threshold_bps" | "unit">): string {
+  return `${formatBps(ag.threshold_bps)} of the target, at least ${formatCount(thresholdFloor(ag.target, ag.threshold_bps))} ${ag.unit}`;
+}
+
+/** "1 independent publisher must state a figure" */
+export function corroborationSentence(ag: Pick<AgreementSummary, "min_independent">): string {
+  const n = ag.min_independent;
+  return `${n} independent publisher${n === 1 ? "" : "s"} must state a figure`;
+}
+
 /** What the standing (or pending) verdict means for this agreement. */
 export function verdictSentence(ag: AgreementSummary): string {
   const unit = ag.unit;
   const threshold = `${formatBps(ag.threshold_bps)} threshold of ${formatCount(ag.target)} ${unit}`;
   if (ag.status === "PENDING_FINALITY" && ag.pending_version > 0) {
-    return `A verdict on evidence v${ag.pending_version} is recorded and pending its finality window; it becomes the agreement's state only when promoted.`;
+    return `A verdict on evidence version ${ag.pending_version} is recorded and pending its finality window. It becomes the agreement's state only when promoted.`;
   }
   switch (ag.verdict) {
     case "QUALIFIED":
-      return `Qualified on evidence v${ag.judged_version} — the lowest usable independent figure is ${formatCount(ag.verified_impact)} ${unit}, at or above the ${threshold}.`;
+      return `Qualified on evidence version ${ag.judged_version}. The lowest usable independent figure is ${formatCount(ag.verified_impact)} ${unit}, at or above the ${threshold}.`;
     case "NOT_QUALIFIED":
-      return `Not qualified on evidence v${ag.judged_version} — the verified figure of ${formatCount(ag.verified_impact)} ${unit} is below the ${threshold}, so the whole reward returns to the funder.`;
+      return `Not qualified on evidence version ${ag.judged_version}. The verified figure of ${formatCount(ag.verified_impact)} ${unit} is below the ${threshold}, so the whole reward returns to the funder.`;
     case "INCONCLUSIVE":
-      return `Inconclusive on evidence v${ag.judged_version} — ${holdSentence(ag.hold_reason)}; nothing moves.`;
+      return `Inconclusive on evidence version ${ag.judged_version}: ${holdSentence(ag.hold_reason)}. Nothing moves.`;
     default:
       return "No verdict yet.";
   }
@@ -73,9 +92,9 @@ export function deadlineSentence(ag: AgreementSummary): string {
   const deadline = formatStamp(ag.deadline_epoch);
   const graceEnd = formatStamp(ag.deadline_epoch + ag.submission_grace);
   const opens = ag.status === "DRAFT"
-    ? "funding closes at it and adjudication opens after it"
-    : "adjudication opens after it";
-  return `Deadline ${deadline} — ${opens}; evidence may be filed until ${graceEnd}, then the funder may reclaim.`;
+    ? "Funding closes at it and adjudication opens after it"
+    : "Adjudication opens after it";
+  return `Deadline ${deadline}. ${opens}; evidence may be filed until ${graceEnd}, then the funder may reclaim.`;
 }
 
 /** The arithmetic with the real numbers, for the Funding math section. */
@@ -100,13 +119,13 @@ export function fundingMath(ag: AgreementSummary): string {
       if (ag.verdict === "QUALIFIED") {
         const payout = payoutPreview(ag.verified_impact, ag.target, ag.max_reward_atto);
         const refund = BigInt(ag.max_reward_atto) - payout;
-        return `${formatCount(ag.verified_impact)} / ${target} × ${reward} GEN = ${formatGen(payout)} GEN to the operator; ${formatGen(refund)} GEN returns to the funder — at settlement, after the challenge window.`;
+        return `${formatCount(ag.verified_impact)} / ${target} × ${reward} GEN = ${formatGen(payout)} GEN to the operator; ${formatGen(refund)} GEN returns to the funder, at settlement after the challenge window.`;
       }
       return `${formatCount(ag.verified_impact)} / ${target} ${unit} is below the ${pct} threshold: the whole ${reward} GEN returns to the funder at settlement.`;
     }
     default:
       if (ag.verdict === "INCONCLUSIVE" && ag.judged_version > 0) {
-        return `Nothing moves while the record is on hold — ${holdSentence(ag.hold_reason)}. ${reward} GEN stays locked for a new package, or returns to the funder after the grace.`;
+        return `Nothing moves while the record is on hold: ${holdSentence(ag.hold_reason)}. ${reward} GEN stays locked for a new package, or returns to the funder after the grace.`;
       }
       return `${reward} GEN is locked. Settlement pays verified / ${target} × ${reward} GEN to the operator and returns the remainder to the funder; below the ${pct} threshold the whole reward returns.`;
   }
@@ -117,6 +136,44 @@ export function fundingMath(ag: AgreementSummary): string {
 export type ActionKind =
   | "fund" | "cancel" | "submit" | "adjudicate" | "promote" | "challenge"
   | "re_adjudicate" | "lapse" | "settle" | "reclaim" | "claim";
+
+/** The one verb on the action card, per kind. */
+const VERB: Record<ActionKind, string> = {
+  fund: "Fund",
+  cancel: "Cancel the draft",
+  submit: "Submit evidence",
+  adjudicate: "Adjudicate",
+  promote: "Promote",
+  challenge: "Challenge",
+  re_adjudicate: "Re-adjudicate",
+  lapse: "Lapse the challenge",
+  settle: "Settle",
+  reclaim: "Reclaim",
+  claim: "Claim",
+};
+
+export function actionVerb(kind: ActionKind): string {
+  return VERB[kind];
+}
+
+/** The contract method each action signs. Shown only in technical folds. */
+const METHOD: Record<ActionKind, string> = {
+  fund: "fund",
+  cancel: "cancel_draft",
+  submit: "submit_evidence",
+  adjudicate: "adjudicate",
+  promote: "promote",
+  challenge: "challenge",
+  re_adjudicate: "re_adjudicate",
+  lapse: "lapse_challenge",
+  settle: "settle",
+  reclaim: "reclaim",
+  claim: "claim",
+};
+
+export function actionMethod(kind: ActionKind): string {
+  return METHOD[kind];
+}
 
 export type Viewer = {
   /** The connected wallet, or null. Ownership decides which action is theirs. */
@@ -188,23 +245,23 @@ function agreementAction(ag: AgreementSummary, now: number, isOperator: boolean,
         if (now > deadline) {
           return act(
             "adjudicate",
-            `Evidence v${version} is filed and unjudged. Anyone may put it to the panel: every validator fetches each source itself, and the round takes a minute or two of consensus.`,
+            `Evidence version ${version} is filed and unjudged. Anyone may put it to the panel: every validator fetches each source itself, and the round takes a minute or two of consensus.`,
           );
         }
         if (isOperator && version < MAX_VERSIONS) {
           return act(
             "submit",
-            `Evidence v${version} is filed; you may replace it with a new version until ${formatStamp(graceEnd)}. Adjudication opens after the deadline, ${formatStamp(deadline)}.`,
+            `Evidence version ${version} is filed; you may replace it with a new version until ${formatStamp(graceEnd)}. Adjudication opens after the deadline, ${formatStamp(deadline)}.`,
           );
         }
-        return wait(deadline, `Evidence v${version} is filed; adjudication opens to anyone after the deadline.`);
+        return wait(deadline, `Evidence version ${version} is filed; adjudication opens to anyone after the deadline.`);
       }
       if (isOperator && now <= graceEnd && version < MAX_VERSIONS) {
         return act(
           "submit",
           version === 0
             ? `File the evidence package: URLs inside the agreed basis and your claimed figure. It may be filed until ${formatStamp(graceEnd)}; after that the funder may reclaim.`
-            : `The panel held v${version}: ${holdSentence(ag.hold_reason)}. A new package may be filed until ${formatStamp(graceEnd)}; after that the funder may reclaim.`,
+            : `The panel held version ${version}: ${holdSentence(ag.hold_reason)}. A new package may be filed until ${formatStamp(graceEnd)}; after that the funder may reclaim.`,
         );
       }
       if (now > graceEnd) {
@@ -222,7 +279,7 @@ function agreementAction(ag: AgreementSummary, now: number, isOperator: boolean,
           ? now <= deadline
             ? `The operator files evidence, and adjudication opens after the deadline ${formatStamp(deadline)}; if nothing is filed by the end of the grace, anyone may reclaim the reward for the funder.`
             : "The operator files evidence; if none is filed by then, anyone may reclaim the reward for the funder."
-          : `The panel held v${version}. The operator may file a new package until then; afterwards anyone may reclaim the reward for the funder.`,
+          : `The panel held version ${version}. The operator may file a new package until then; afterwards anyone may reclaim the reward for the funder.`,
       );
     }
 
@@ -230,7 +287,7 @@ function agreementAction(ag: AgreementSummary, now: number, isOperator: boolean,
       if (now > ag.pending_until_epoch) {
         return act(
           "promote",
-          `The finality window closed ${formatStamp(ag.pending_until_epoch)}. Anyone may promote the recorded verdict into the agreement's state; an INCONCLUSIVE verdict returns it to funded.`,
+          `The finality window closed ${formatStamp(ag.pending_until_epoch)}. Anyone may promote the recorded verdict into the agreement's state; an inconclusive verdict returns it to funded.`,
         );
       }
       return wait(ag.pending_until_epoch, "A verdict is recorded and pending; after the finality window anyone may promote it.");

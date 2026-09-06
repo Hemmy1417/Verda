@@ -3,24 +3,33 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CONTRACT_ADDRESS, formatBps, formatGen, formatSpan, formatStamp } from "../../../lib/config";
+import { CONTRACT_ADDRESS, formatGen, formatRelative, formatSpan, formatStamp } from "../../../lib/config";
 import {
-  deadlineSentence, formatCount, fundingMath, holdSentence, nextAction, progressBps,
-  verdictSentence, type NextAction,
+  actionMethod, actionVerb, corroborationSentence, deadlineSentence, formatCount, fundingMath,
+  holdSentence, nextAction, progressBps, thresholdSentence, verdictSentence,
+  type ActionKind, type NextAction,
 } from "../../../lib/derive";
 import {
   adjudicationRecorded, agreementStatusIs, cancelled, challengeClosed, challengeOpen,
   claimDrained, evidenceVersionAbove, isFunder, isOperator, promoted, reclaimed, settled,
 } from "../../../lib/predicates";
 import { getAgreement, getClaimable, getDossier, getPackage, invalidateReads } from "../../../lib/read";
+import { timeline } from "../../../lib/timeline";
 import { inFlight, writeAndConfirm, type TxProgress } from "../../../lib/tx";
-import { TERMINAL_STATUSES, type Agreement, type BasisEntry, type Dossier, type DossierRow, type Package } from "../../../lib/types";
-import { distinctPublishers, hostOf, matchBasis, normalizeUrl, validUrl } from "../../../lib/urls";
+import type { Agreement, BasisEntry, Dossier, Package } from "../../../lib/types";
+import { distinctPublishers, hostOf, matchBasis, normalizeUrl, registrableDomain, validUrl } from "../../../lib/urls";
 import { useNow } from "../../../lib/useNow";
 import { useWallet } from "../../../lib/wallet";
 import {
-  Addr, BasisClass, Figure, Gen, ProgressBar, StateNote, StatusChip, VerdictStamp,
+  basisWord, classWord, conflictWord, evidenceSentence, evidenceWord, figureWord, filedByWord,
+  humanTitle, kindWord, labelWord, ordinalOf, outcomeTitle, partyWord, readWord, roundWord,
+  scopeWord, splitLabel, verdictWord,
+} from "../../../lib/words";
+import {
+  ClassChip, Figure, Gen, KindChip, ProgressBar, Seal, StateNote, StatusChip, Technical,
+  VerdictStamp,
 } from "../../components/bits";
+import { Timeline } from "../../components/Timeline";
 import { TxFlow } from "../../components/TxFlow";
 
 const MAX_SOURCES = 6;
@@ -36,171 +45,200 @@ type RunFn = (
   confirmedDetail: string,
 ) => Promise<void>;
 
+const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+
 // ── the record ──────────────────────────────────────────────────────────────
 
-function UrlCell({ url }: { url: string }) {
+function AgreementCard({ ag }: { ag: Agreement }) {
   return (
-    <span style={{ whiteSpace: "nowrap" }}>
-      <span className="url" title={url}>{url}</span>
-      <button
-        className="copy-btn"
-        onClick={() => void navigator.clipboard?.writeText(url)}
-        aria-label="Copy url"
-      >
-        copy
-      </button>{" "}
-      <a href={url} target="_blank" rel="noreferrer" className="ghost">open</a>
-    </span>
+    <section className="card record">
+      <h2 className="eyebrow">Agreement</h2>
+      <dl className="kv">
+        <dt>Outcome</dt>
+        <dd>{outcomeTitle(ag)}. Measured as {ag.metric}, in {ag.region}.</dd>
+        <dt>Threshold</dt>
+        <dd>{cap(thresholdSentence(ag))}. Below it the whole reward returns to the funder.</dd>
+        <dt>Corroboration</dt>
+        <dd>{corroborationSentence(ag)}. Two pages on one publisher are one voice.</dd>
+        <dt>Reward</dt>
+        <dd><Gen atto={ag.max_reward_atto} /> at most; challenge bond <Gen atto={ag.challenge_bond_atto} />.</dd>
+        <dt>Deadline</dt>
+        <dd>{deadlineSentence(ag)}</dd>
+        <dt>Windows</dt>
+        <dd>
+          Submission grace {formatSpan(ag.submission_grace)} after the deadline, then the funder may reclaim.
+          Finality {formatSpan(ag.finality_window)}: a verdict becomes state after it.
+          Challenge {formatSpan(ag.challenge_window)}: a party may challenge inside it, and anyone settles after.
+        </dd>
+        <dt>Verdict</dt>
+        <dd>{verdictSentence(ag)}</dd>
+      </dl>
+
+      <div>
+        <p className="small">
+          Evidence basis: the only origins the panel may read. Kinds and classes are labels both
+          wallets signed; the panel is told so and judges each page as what it shows itself to be.
+        </p>
+        <ul className="basis-list">
+          {ag.basis.map((b) => (
+            <li key={b.origin}>
+              <KindChip kind={b.kind} />
+              <ClassChip cls={b.class} />
+              <span className="small caption">{b.origin}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <details className="technical terms">
+        <summary>Read the terms</summary>
+        <pre>{ag.terms_text}</pre>
+      </details>
+      <Technical
+        rows={[
+          { label: "Agreement id", value: ag.agreement_id },
+          { label: "Terms hash", value: ag.terms_sha256 },
+          { label: "Operator", value: ag.operator },
+          { label: "Funder", value: ag.funder },
+          { label: "Evidence root", value: ag.evidence_root },
+          { label: "Drafted epoch", value: String(ag.created_epoch) },
+          { label: "Funded epoch", value: ag.funded_epoch ? String(ag.funded_epoch) : "" },
+        ]}
+      />
+    </section>
   );
 }
 
 function EvidenceVersion({ pkg, unit }: { pkg: Package; unit: string }) {
   const byChallenger = pkg.added_by.startsWith("challenger");
   return (
-    <div>
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "baseline" }}>
-        <span className="subheading">Version {pkg.version}</span>
-        <span>
-          claimed <Figure value={pkg.claimed_impact} unit={unit} />
-        </span>
-        <span className="small muted">
-          {byChallenger
-            ? `filed by the ${pkg.added_by.split(":")[1] ?? "challenger"} as challenger — the judged rows plus one new source`
-            : "filed by the operator"}
-        </span>
-      </div>
-      <div className="tablewrap" style={{ marginTop: 12 }}>
+    <div className="version">
+      <h3 className="subheading">Version {pkg.version}</h3>
+      <p>
+        Filed by {filedByWord(pkg.added_by)}, claiming {formatCount(pkg.claimed_impact)} {unit}.
+        {byChallenger ? " The judged rows, plus the one source the challenger added." : ""}
+      </p>
+      <div className="tablewrap">
         <table className="rows">
           <thead>
             <tr>
-              <th>Id</th>
-              <th>Label</th>
-              <th>Publisher</th>
+              <th>Source</th>
               <th>Kind</th>
               <th>Class</th>
-              <th>Url</th>
             </tr>
           </thead>
           <tbody>
             {pkg.rows.map((r) => {
-              const challenger = r.label.startsWith("[CHALLENGER]");
+              const label = splitLabel(r.label);
               return (
                 <tr key={r.id}>
-                  <td className="mono">{r.id}</td>
                   <td>
-                    {challenger ? (
-                      <>
-                        <span className="chip" style={{ marginRight: 8 }}>challenger</span>
-                        {r.label.replace(/^\[CHALLENGER\]\s*/, "")}
-                      </>
-                    ) : r.label}
+                    <div className="title">
+                      {label.text}
+                      {label.challenger && <span className="chip inline-chip">added by the challenger</span>}
+                    </div>
+                    <div className="small caption">{r.domain}</div>
                   </td>
-                  <td>
-                    {r.domain}
-                    {r.host !== r.domain && <div className="small muted">{r.host}</div>}
-                  </td>
-                  <td className="small">{r.kind.replace(/_/g, " ").toLowerCase()}</td>
-                  <td><BasisClass cls={r.cls} /></td>
-                  <td><UrlCell url={r.url} /></td>
+                  <td><KindChip kind={r.kind} /></td>
+                  <td><ClassChip cls={r.cls} /></td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-      <details className="technical" style={{ marginTop: 12 }}>
-        <summary>package root</summary>
-        <div className="technical-body">{pkg.root}</div>
-      </details>
+      <Technical
+        rows={[
+          ...pkg.rows.map((r) => ({ label: `${r.id} url`, value: r.url, href: r.url, wide: true })),
+          { label: "Package root", value: pkg.root },
+        ]}
+      />
     </div>
   );
 }
 
-function basisText(r: DossierRow): string {
-  if (r.basis === "RECORDED") return `recorded at round ${r.basis_round}`;
-  if (r.basis === "NEW") return "new — added by the challenger";
-  return "fetched this round";
-}
-
 function Round({ d, ag, pending }: { d: Dossier; ag: Agreement; pending: boolean }) {
+  const hold = d.verdict === "INCONCLUSIVE";
   return (
-    <div>
-      <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "baseline" }}>
-        <VerdictStamp verdict={d.verdict} hold={d.hold_reason} />
-        <Figure value={d.verified_impact} unit={ag.unit} big />
+    <div className="round">
+      <div className="round-head">
+        <VerdictStamp verdict={d.verdict} />
+        <div className="round-figure">
+          {hold ? <span className="big-word">on hold</span> : <Figure value={d.verified_impact} unit={ag.unit} big />}
+          <span className="small">verified</span>
+        </div>
       </div>
-      <dl className="kv" style={{ marginTop: 16 }}>
-        <dt>Round</dt>
+      <p>
+        {roundWord(d.round_kind, d.evidence_version, d.reconsidered_round)}, observed {formatStamp(d.observed_epoch)}.
+        {pending && ` Pending finality until ${formatStamp(ag.pending_until_epoch)}.`}
+      </p>
+      <dl className="kv">
+        <dt>Outcome</dt>
         <dd>
-          {d.round_kind === "RE_ADJUDICATION"
-            ? `re-adjudication of evidence v${d.evidence_version}, reconsidering round ${d.reconsidered_round} — the recorded bytes of that round, plus what the challenger added`
-            : `adjudication of evidence v${d.evidence_version}`}
-          {" · "}observed {formatStamp(d.observed_epoch)}
-          {pending && ` · pending finality until ${formatStamp(ag.pending_until_epoch)}`}
+          {hold
+            ? `On hold: ${holdSentence(d.hold_reason)}.`
+            : `${verdictWord(d.verdict)}: ${formatCount(d.verified_impact)} ${ag.unit} verified, the lowest usable independent figure, against a claim of ${formatCount(d.claimed_impact)} ${ag.unit}.`}
         </dd>
         <dt>Evidence</dt>
-        <dd className="mono">{d.evidence_flag}</dd>
+        <dd>{cap(evidenceWord(d.evidence_flag))}: {evidenceSentence(d.evidence_flag)}.</dd>
         <dt>Score</dt>
-        <dd className="figure">{d.score} / 100</dd>
+        <dd>score {d.score} of 100</dd>
         {d.conflicts.length > 0 && (
           <>
             <dt>Conflicts</dt>
-            <dd style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-              {d.conflicts.map((c) => (
-                <span key={c} className="chip">{c.replace(/_/g, " ")}</span>
-              ))}
-            </dd>
-          </>
-        )}
-        {d.hold_reason && (
-          <>
-            <dt>Hold</dt>
-            <dd>{holdSentence(d.hold_reason)}</dd>
+            <dd>{cap(d.conflicts.map(conflictWord).join("; "))}.</dd>
           </>
         )}
         <dt>Claimed</dt>
-        <dd><Figure value={d.claimed_impact} unit={ag.unit} /></dd>
+        <dd>{formatCount(d.claimed_impact)} {ag.unit}</dd>
       </dl>
-      <blockquote className="reason" style={{ marginTop: 20 }}>{d.reason}</blockquote>
-      <div className="tablewrap" style={{ marginTop: 20 }}>
-        <table className="rows">
+      <blockquote className="reason">{d.reason}</blockquote>
+      <div className="tablewrap">
+        <table className="rows readings">
           <thead>
             <tr>
-              <th>Id</th>
+              <th>Source</th>
               <th>Class</th>
-              <th>Basis</th>
-              <th>Readable</th>
+              <th>Bytes</th>
+              <th>Read</th>
               <th className="num">Figure</th>
-              <th>On scope</th>
-              <th>Label fits</th>
-              <th>Digest</th>
+              <th>Scope</th>
+              <th>Label</th>
             </tr>
           </thead>
           <tbody>
-            {d.rows.map((r) => (
-              <tr key={r.id}>
-                <td className="mono">
-                  {r.id}
-                  <div className="small muted">{r.domain}</div>
-                </td>
-                <td><BasisClass cls={r.cls} /></td>
-                <td className="small">{basisText(r)}</td>
-                <td>{r.readable ? "yes" : "unreachable or empty"}</td>
-                <td className="num">{r.figure === null ? "null" : formatCount(r.figure)}</td>
-                <td>{r.readable ? (r.scope_ok ? "yes" : "no") : "—"}</td>
-                <td>{r.readable ? (r.kind_matches ? "yes" : "no") : "—"}</td>
-                <td><Addr value={r.digest} label="Copy digest" /></td>
-              </tr>
-            ))}
+            {d.rows.map((r) => {
+              const label = splitLabel(r.label);
+              return (
+                <tr key={r.id}>
+                  <td>
+                    <div className="title">{label.text}</div>
+                    <div className="small caption">{r.domain}</div>
+                  </td>
+                  <td><ClassChip cls={r.cls} /></td>
+                  <td>{basisWord(r.basis, r.basis_round)}</td>
+                  <td>{readWord(r.readable)}</td>
+                  <td className="num">
+                    {r.figure === null || r.figure === undefined
+                      ? <span className="sans">{figureWord(r.figure, ag.unit)}</span>
+                      : figureWord(r.figure, ag.unit)}
+                  </td>
+                  <td>{scopeWord(r.readable, r.scope_ok)}</td>
+                  <td>{labelWord(r.readable, r.kind_matches)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
-      <details className="technical" style={{ marginTop: 12 }}>
-        <summary>dossier record</summary>
-        <div className="technical-body">
-          {`dossier id      ${d.dossier_id}\nevidence root   ${d.evidence_root}\nexcerpts        ${d.rows.filter((r) => r.readable).length} readable of ${d.rows.length}, each digest = sha256 of the bytes stored`}
-        </div>
-      </details>
+      <Technical
+        rows={[
+          { label: "Dossier id", value: d.dossier_id },
+          { label: "Evidence root", value: d.evidence_root },
+          { label: "Round epoch", value: String(d.observed_epoch) },
+          ...d.rows.map((r) => ({ label: `${r.id} digest`, value: r.digest })),
+        ]}
+      />
     </div>
   );
 }
@@ -220,19 +258,19 @@ function rowProblem(
   const label = row.label.trim();
   if (!url) return { problem: "a url is needed", entry: null };
   if (!validUrl(url)) {
-    return { problem: "the url must be http(s), printable ASCII without quotes or '|', 12–400 characters", entry: null };
+    return { problem: "the url must be http or https, plain ASCII without quotes or vertical bars, 12 to 400 characters", entry: null };
   }
   const entry = matchBasis(url, basis);
   if (!entry) {
-    return { problem: `${hostOf(url)} is outside the agreed basis — the panel reads only the origins both parties signed`, entry: null };
+    return { problem: `${hostOf(url)} is outside the agreed basis; the panel reads only the origins both parties signed`, entry: null };
   }
   const norm = normalizeUrl(url);
   if (seen.has(norm)) {
-    return { problem: `${norm} is already in the package — one page is one source, however it is spelled`, entry };
+    return { problem: "this page is already in the package; one page is one source, however it is spelled", entry };
   }
   seen.add(norm);
   if (label.length < 1 || label.length > MAX_LABEL_CHARS) {
-    return { problem: `source ${index + 1} needs a label of 1–${MAX_LABEL_CHARS} characters`, entry };
+    return { problem: `source ${index + 1} needs a label of 1 to ${MAX_LABEL_CHARS} characters`, entry };
   }
   return { problem: "", entry };
 }
@@ -255,47 +293,46 @@ function SourceRows({
         return (
           <div key={i} className="rowform">
             <label className="field">
-              <span className="label">Url {i + 1}</span>
+              <span className="label">Page {i + 1}</span>
               <input
                 value={r.url}
                 spellCheck={false}
-                placeholder="https://…"
+                placeholder="https://"
                 onChange={(e) => onChange(rows.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))}
               />
-              <span className={problem ? "hint problem" : "hint ok"}>
+              <span className={problem ? "hint problem" : "hint"}>
                 {problem
                   ? problem
                   : entry
-                    ? `inherits ${entry.kind.replace(/_/g, " ").toLowerCase()} · ${entry.class} from ${entry.origin}`
+                    ? `${kindWord(entry.kind)}, ${classWord(entry.class)}, published by ${registrableDomain(hostOf(r.url.trim()))}`
                     : ""}
               </span>
             </label>
             <label className="field">
-              <span className="label">Label</span>
+              <span className="label">What this page is</span>
               <input
                 value={r.label}
                 maxLength={MAX_LABEL_CHARS}
-                placeholder="what this page is"
+                placeholder="Satellite pass, September"
                 onChange={(e) => onChange(rows.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
               />
-              <span className="hint">{r.label.trim().length}/{MAX_LABEL_CHARS}</span>
+              <span className="hint">{r.label.trim().length} of {MAX_LABEL_CHARS} characters</span>
             </label>
-            <div className="field">
-              <span className="label">&nbsp;</span>
+            {rows.length > 1 && (
               <button
+                type="button"
                 className="linkish"
-                disabled={rows.length <= 1}
                 onClick={() => onChange(rows.filter((_, j) => j !== i))}
               >
-                remove
+                Remove this page
               </button>
-            </div>
+            )}
           </div>
         );
       })}
       {rows.length < max && (
-        <button className="linkish" onClick={() => onChange([...rows, { url: "", label: "" }])}>
-          add a source ({rows.length} of {max})
+        <button type="button" className="linkish" onClick={() => onChange([...rows, { url: "", label: "" }])}>
+          Add a page ({rows.length} of {max})
         </button>
       )}
     </div>
@@ -316,39 +353,35 @@ function SubmitForm({
 
   const problems: string[] = [];
   const seen = new Set<string>();
-  const matched: BasisEntry[] = [];
-  const hosts: string[] = [];
+  const matched: Array<{ entry: BasisEntry; host: string }> = [];
   rows.forEach((r, i) => {
     const { problem, entry } = rowProblem(r, i, ag.basis, seen);
-    if (problem) problems.push(`source ${i + 1}: ${problem}`);
-    else if (entry) {
-      matched.push(entry);
-      if (entry.class === "INDEPENDENT") hosts.push(hostOf(r.url.trim()));
-    }
+    if (problem) problems.push(`page ${i + 1}: ${problem}`);
+    else if (entry) matched.push({ entry, host: hostOf(r.url.trim()) });
   });
-  if (rows.length < 1 || rows.length > MAX_SOURCES) problems.push(`name 1–${MAX_SOURCES} sources`);
-  if (problems.length === 0 && !matched.some((e) => e.class === "INDEPENDENT")) {
-    problems.push("the package needs at least one source from an INDEPENDENT origin — the operator's own record cannot carry a payout");
+  if (rows.length < 1 || rows.length > MAX_SOURCES) problems.push(`name 1 to ${MAX_SOURCES} pages`);
+  if (problems.length === 0 && !matched.some((m) => m.entry.class === "INDEPENDENT")) {
+    problems.push("the package needs at least one page from an independent origin; the operator's own record cannot carry a payout");
   }
   const claimedNum = /^\d+$/.test(claimed.trim()) ? Number(claimed.trim()) : NaN;
   if (!Number.isInteger(claimedNum) || claimedNum < 0 || claimedNum > MAX_FIGURE) {
-    problems.push(`the claimed figure must be a whole number of ${ag.unit}, 0–${formatCount(MAX_FIGURE)}`);
+    problems.push(`the claimed figure must be a whole number of ${ag.unit}, 0 to ${formatCount(MAX_FIGURE)}`);
   }
-  const publishers = distinctPublishers(hosts);
+  const publishers = distinctPublishers(matched.filter((m) => m.entry.class === "INDEPENDENT").map((m) => m.host));
   const ready = problems.length === 0;
   const sources = rows.map((r) => ({ url: r.url.trim(), label: r.label.trim() }));
   const sourcesJson = JSON.stringify(sources);
 
   return (
     <div className="action">
-      <p className="muted">
-        A package is whole: 1–{MAX_SOURCES} URLs inside the agreed basis, each inheriting its
-        kind and class from the origin it matches, plus your claimed figure — a ceiling on
-        what can be verified, never a floor. This will be version {version}; earlier
-        versions stay on-chain.
+      <p>
+        A package is whole: 1 to {MAX_SOURCES} pages inside the agreed basis, each inheriting its
+        kind and class from the origin it matches, plus your claimed figure. The claim is a ceiling
+        on what can be verified, never a floor. This will be version {version}; earlier versions
+        stay on the record.
       </p>
       <SourceRows rows={rows} basis={ag.basis} seenBefore={[]} onChange={setRows} max={MAX_SOURCES} />
-      <div className="field" style={{ maxWidth: 320 }}>
+      <div className="field">
         <span className="label">Claimed figure ({ag.unit})</span>
         <input value={claimed} inputMode="numeric" onChange={(e) => setClaimed(e.target.value)} />
         <span className="hint">
@@ -358,8 +391,8 @@ function SubmitForm({
       {problems.length > 0 ? (
         <p className="problem">Before this can be sent: {problems.join("; ")}.</p>
       ) : (
-        <p className="ok">
-          {publishers} independent publisher{publishers === 1 ? "" : "s"} among these rows;
+        <p className="small">
+          {publishers} independent publisher{publishers === 1 ? "" : "s"} among these pages;
           the agreement requires {ag.min_independent} to state a usable figure before money can move.
         </p>
       )}
@@ -368,21 +401,37 @@ function SubmitForm({
           <button className="pill" disabled={!ready || busy} onClick={() => setReview(true)}>
             Review before signing
           </button>
-          <span className="price">no value is sent; only the fee deposit, mostly refunded</span>
+          <span className="price">no GEN is sent; the fee deposit is separate and mostly refunded</span>
         </div>
       ) : (
         <div className="review">
-          <p className="eyebrow">What your signature sends — exactly</p>
-          <dl className="kv">
-            <dt>Method</dt>
-            <dd className="mono">submit_evidence({ag.agreement_id}, {claimedNum}, sources)</dd>
-            <dt>Claimed</dt>
-            <dd><Figure value={claimedNum} unit={ag.unit} /></dd>
-            <dt>Sources</dt>
-            <dd className="mono small" style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(sources, null, 2)}</dd>
-            <dt>Value</dt>
-            <dd>0 GEN — the fee deposit is separate and mostly refunded</dd>
-          </dl>
+          <p className="eyebrow">What you sign</p>
+          <p>
+            Evidence version {version} for agreement {ordinalOf(ag.agreement_id)}: {sources.length} page{sources.length === 1 ? "" : "s"},
+            claiming {formatCount(claimedNum)} {ag.unit}. No GEN is sent; the fee deposit is separate and mostly refunded.
+          </p>
+          <ul className="review-list">
+            {sources.map((s, i) => {
+              const m = matched[i];
+              return (
+                <li key={i}>
+                  <span className="title">{s.label}</span>
+                  <span className="small caption">
+                    {registrableDomain(hostOf(s.url))}{m ? ` · ${kindWord(m.entry.kind)} · ${classWord(m.entry.class)}` : ""}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <Technical
+            title="Exactly what is sent"
+            rows={[
+              { label: "Method", value: actionMethod("submit") },
+              { label: "Agreement id", value: ag.agreement_id },
+              { label: "Claimed figure", value: String(claimedNum) },
+              { label: "Sources", value: sourcesJson, wide: true },
+            ]}
+          />
           <div className="action-row">
             <button
               className="pill"
@@ -390,10 +439,10 @@ function SubmitForm({
               onClick={() => void run(
                 "submit_evidence", [ag.agreement_id, claimedNum, sourcesJson], 0n,
                 evidenceVersionAbove(ag.agreement_id, ag.evidence_version),
-                `Evidence v${version} is on the record, finalized.`,
+                `Evidence version ${version} is on the record, finalized.`,
               )}
             >
-              Submit evidence v{version}
+              Submit evidence
             </button>
             <button className="pill quiet" disabled={busy} onClick={() => setReview(false)}>Back to editing</button>
           </div>
@@ -418,33 +467,34 @@ function ChallengeForm({
   const g = grounds.trim();
   const problems: string[] = [];
   if (g.length < GROUNDS_CHARS[0] || g.length > GROUNDS_CHARS[1]) {
-    problems.push(`grounds must be ${GROUNDS_CHARS[0]}–${GROUNDS_CHARS[1]} characters (now ${g.length})`);
+    problems.push(`grounds must be ${GROUNDS_CHARS[0]} to ${GROUNDS_CHARS[1]} characters (now ${g.length})`);
   }
   const hasExtra = extra.url.trim() !== "" || extra.label.trim() !== "";
   let extraEntry: BasisEntry | null = null;
   if (hasExtra) {
     const seen = new Set((judged?.rows ?? []).map((r) => r.norm_url));
     const { problem, entry } = rowProblem(extra, 0, ag.basis, seen);
-    if (problem) problems.push(`new source: ${problem}`);
+    if (problem) problems.push(`new page: ${problem}`);
     extraEntry = entry;
   }
   const ready = problems.length === 0;
   const newVersion = ag.evidence_version + 1;
+  const bondGen = formatGen(bond);
 
   return (
     <div className="action">
-      <p className="muted">
-        Your grounds reach the second panel as a party claim, never as proof. The panel
-        re-reads the recorded bytes of round {ag.judged_version} and fetches live only the
-        one source you may add here, from inside the basis. The bond returns if the verdict
-        or the verified figure changes; otherwise it goes to the other party.
+      <p>
+        Your grounds reach the second panel as a party claim, never as proof. The panel re-reads
+        the recorded bytes of round {ag.judged_version} and fetches live only the one page you may
+        add here, from inside the basis. The bond returns if the verdict or the verified figure
+        changes; otherwise it goes to the other party.
       </p>
       <div className="field">
-        <span className="label">Grounds ({GROUNDS_CHARS[0]}–{GROUNDS_CHARS[1]} characters)</span>
+        <span className="label">Grounds</span>
         <textarea rows={4} value={grounds} onChange={(e) => setGrounds(e.target.value)} />
-        <span className="hint">{g.length} characters</span>
+        <span className="hint">{g.length} characters; {GROUNDS_CHARS[0]} to {GROUNDS_CHARS[1]}</span>
       </div>
-      <p className="eyebrow">One new source (optional)</p>
+      <p className="eyebrow">One new page (optional)</p>
       <SourceRows
         rows={[extra]}
         basis={ag.basis}
@@ -458,27 +508,29 @@ function ChallengeForm({
           <button className="pill" disabled={!ready || busy} onClick={() => setReview(true)}>
             Review before signing
           </button>
-          <span className="price">
-            bond: exactly <span className="figure">{formatGen(bond)} GEN</span>
-          </span>
+          <span className="price">bond: exactly <span className="figure">{bondGen} GEN</span></span>
         </div>
       ) : (
         <div className="review">
-          <p className="eyebrow">What your signature sends — exactly</p>
-          <dl className="kv">
-            <dt>Method</dt>
-            <dd className="mono">challenge({ag.agreement_id}, grounds, extra_url, extra_label)</dd>
-            <dt>Bond</dt>
-            <dd><Gen atto={bond.toString()} /> — sent as the transaction&apos;s value, held until the round concludes</dd>
-            <dt>Grounds</dt>
-            <dd style={{ whiteSpace: "pre-wrap" }}>{g}</dd>
-            <dt>New source</dt>
-            <dd>
-              {hasExtra && extraEntry
-                ? <>{extra.url.trim()} — labelled &ldquo;[CHALLENGER] {extra.label.trim()}&rdquo;, inheriting {extraEntry.kind.replace(/_/g, " ").toLowerCase()} · {extraEntry.class}; becomes evidence v{newVersion}</>
-                : <>none — the record is re-read as it stands (still stored as evidence v{newVersion})</>}
-            </dd>
-          </dl>
+          <p className="eyebrow">What you sign</p>
+          <p>
+            You post a bond of exactly {bondGen} GEN, sent with the transaction and held until the
+            round concludes. The record is re-read as evidence version {newVersion}
+            {hasExtra && extraEntry
+              ? `, with one new page added: ${extra.label.trim()}, published by ${registrableDomain(hostOf(extra.url.trim()))}, ${kindWord(extraEntry.kind)}, ${classWord(extraEntry.class)}.`
+              : ", with no new page."}
+          </p>
+          <blockquote className="reason">{g}</blockquote>
+          <Technical
+            title="Exactly what is sent"
+            rows={[
+              { label: "Method", value: actionMethod("challenge") },
+              { label: "Agreement id", value: ag.agreement_id },
+              { label: "Bond (atto)", value: bond.toString() },
+              { label: "New page url", value: hasExtra ? extra.url.trim() : "", href: hasExtra ? extra.url.trim() : undefined, wide: true },
+              { label: "New page label", value: hasExtra ? extra.label.trim() : "" },
+            ]}
+          />
           <div className="action-row">
             <button
               className="pill"
@@ -491,7 +543,7 @@ function ChallengeForm({
                 "The challenge is filed and the bond is in custody; re-adjudication is open to anyone.",
               )}
             >
-              Post the bond and challenge — {formatGen(bond)} GEN
+              Challenge <span className="amount">{bondGen} GEN</span>
             </button>
             <button className="pill quiet" disabled={busy} onClick={() => setReview(false)}>Back to editing</button>
           </div>
@@ -503,7 +555,66 @@ function ChallengeForm({
 
 // ── the one legal action ────────────────────────────────────────────────────
 
-function Actions({
+/** A one-verb action with a review step and no form: adjudicate, promote,
+ *  settle, reclaim, lapse, re-adjudicate, cancel, claim. */
+function SimpleAction({
+  kind, ag, amount, review, predicate, confirmed, busy, needsWallet, args, valueAtto = 0n, run,
+}: {
+  kind: ActionKind;
+  ag: Agreement;
+  /** "0.046 GEN" beside the verb, for claim; nothing for a free call. */
+  amount?: string;
+  /** The human sentence of what signing does. */
+  review: string;
+  predicate: () => Promise<boolean>;
+  confirmed: string;
+  busy: boolean;
+  needsWallet: boolean;
+  args: unknown[];
+  valueAtto?: bigint;
+  run: RunFn;
+}) {
+  const [open, setOpen] = useState(false);
+  const verb = actionVerb(kind);
+  const label = (
+    <>
+      {verb}
+      {amount ? <span className="amount">{amount}</span> : null}
+    </>
+  );
+  if (!open) {
+    return (
+      <div className="action-row">
+        <button className="pill" disabled={busy || needsWallet} onClick={() => setOpen(true)}>{label}</button>
+        <span className="price">
+          {needsWallet ? "connect a wallet to sign this" : "no GEN is sent; only the fee deposit, mostly refunded"}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="review">
+      <p className="eyebrow">What you sign</p>
+      <p>{review}</p>
+      <Technical
+        title="Exactly what is sent"
+        rows={[
+          { label: "Method", value: actionMethod(kind) },
+          ...(args.length ? [{ label: "Agreement id", value: ag.agreement_id }] : []),
+          { label: "Value (atto)", value: valueAtto.toString() },
+        ]}
+      />
+      <div className="action-row">
+        <button className="pill" disabled={busy} onClick={() => void run(actionMethod(kind), args, valueAtto, predicate, confirmed)}>
+          {label}
+        </button>
+        <button className="pill quiet" disabled={busy} onClick={() => setOpen(false)}>Back</button>
+      </div>
+    </div>
+  );
+}
+
+function ActionBody({
   ag, action, address, claimable, judged, busy, run,
 }: {
   ag: Agreement;
@@ -515,65 +626,59 @@ function Actions({
   run: RunFn;
 }) {
   const [review, setReview] = useState(false);
+  const now = useNow();
   const id = ag.agreement_id;
+  const n = ordinalOf(id);
   const reward = BigInt(ag.max_reward_atto);
+  const rewardGen = formatGen(reward);
   const bond = BigInt(ag.challenge_bond_atto);
   const needsWallet = action.kind !== "wait" && action.kind !== "none" && !address;
-
-  const simple = (label: string, functionName: string, predicate: () => Promise<boolean>, confirmed: string, price = "costs nothing but the fee deposit, mostly refunded") => (
-    <div className="action">
-      <p className="muted">{action.why}</p>
-      <div className="action-row">
-        <button
-          className="pill"
-          disabled={busy || needsWallet}
-          onClick={() => void run(functionName, [id], 0n, predicate, confirmed)}
-        >
-          {label}
-        </button>
-        <span className="price">{needsWallet ? "connect a wallet to sign this" : price}</span>
-      </div>
-    </div>
+  const simple = (kind: ActionKind, review: string, predicate: () => Promise<boolean>, confirmed: string) => (
+    <SimpleAction
+      kind={kind} ag={ag} review={review} predicate={predicate} confirmed={confirmed}
+      busy={busy} needsWallet={needsWallet} args={[id]} run={run}
+    />
   );
 
-  let body: React.ReactNode;
   switch (action.kind) {
     case "fund":
-      body = (
+      return (
         <div className="action">
-          <p className="muted">{action.why}</p>
+          <p>{action.why}</p>
           {!review ? (
             <div className="action-row">
               <button className="pill" disabled={busy || needsWallet} onClick={() => setReview(true)}>
-                Review before funding
+                Fund <span className="amount">{rewardGen} GEN</span>
               </button>
               <span className="price">
-                {needsWallet ? "connect a wallet to fund" : <>sends exactly <span className="figure">{formatGen(reward)} GEN</span></>}
+                {needsWallet ? "connect a wallet to fund" : <>sends exactly <span className="figure">{rewardGen} GEN</span></>}
               </span>
             </div>
           ) : (
             <div className="review">
-              <p className="eyebrow">What your signature sends — exactly</p>
-              <dl className="kv">
-                <dt>Method</dt>
-                <dd className="mono">fund({id})</dd>
-                <dt>Value</dt>
-                <dd><Gen atto={reward.toString()} /> — the whole maximum reward, locked until settlement or reclaim</dd>
-                <dt>You become</dt>
-                <dd>the funder: you may challenge a verdict inside its window, and the reward returns to your ledger if nothing is proven inside the grace</dd>
-                <dt>You accept</dt>
-                <dd>the terms (sha256 <span className="mono small">{ag.terms_sha256.slice(0, 16)}…</span>), the outcome, the money rule and the evidence basis below, frozen</dd>
-              </dl>
+              <p className="eyebrow">What you sign</p>
+              <p>You send exactly {rewardGen} GEN, the whole maximum reward. It stays locked in the contract until settlement or reclaim.</p>
+              <p>You become the funder. You may challenge a verdict inside its window, and the reward returns to your ledger if nothing is proven inside the grace.</p>
+              <p>You accept the terms, the outcome, the money rule and the evidence basis exactly as this page shows them. They freeze under your deposit.</p>
+              <Technical
+                title="Exactly what is sent"
+                rows={[
+                  { label: "Method", value: actionMethod("fund") },
+                  { label: "Agreement id", value: id },
+                  { label: "Value (atto)", value: reward.toString() },
+                  { label: "Terms hash", value: ag.terms_sha256 },
+                ]}
+              />
               <div className="action-row">
                 <button
                   className="pill"
                   disabled={busy}
                   onClick={() => void run(
                     "fund", [id], reward, agreementStatusIs(id, "FUNDED"),
-                    `Funded: ${formatGen(reward)} GEN is locked and the agreement is in force, finalized.`,
+                    `Funded: ${rewardGen} GEN is locked and the agreement is in force, finalized.`,
                   )}
                 >
-                  Fund — exactly {formatGen(reward)} GEN
+                  Fund <span className="amount">{rewardGen} GEN</span>
                 </button>
                 <button className="pill quiet" disabled={busy} onClick={() => setReview(false)}>Back</button>
               </div>
@@ -581,96 +686,182 @@ function Actions({
           )}
         </div>
       );
-      break;
     case "cancel":
-      body = simple("Cancel the draft", "cancel_draft", cancelled(id), "Cancelled, finalized. The draft held nothing.");
-      break;
-    case "submit":
-      body = <SubmitForm ag={ag} busy={busy} run={run} />;
-      break;
-    case "adjudicate":
-      body = simple(
-        `Adjudicate evidence v${ag.evidence_version}`, "adjudicate",
-        adjudicationRecorded(id, ag.evidence_version),
-        "The panel has judged; the verdict is recorded and pending its finality window.",
-        "costs nothing but the fee deposit · a minute or two of consensus",
-      );
-      break;
-    case "promote":
-      body = simple("Promote the verdict", "promote", promoted(id), "Promoted: the recorded verdict is now the agreement's state.");
-      break;
-    case "challenge":
-      body = <ChallengeForm ag={ag} judged={judged} bond={bond} busy={busy} run={run} />;
-      break;
-    case "re_adjudicate":
-      body = simple(
-        "Run the re-adjudication", "re_adjudicate", challengeClosed(id),
-        "Re-judged: the challenge is concluded and the new verdict is pending its finality window.",
-        "costs nothing but the fee deposit · a minute or two of consensus",
-      );
-      break;
-    case "lapse":
-      body = simple("Lapse the stale challenge", "lapse_challenge", challengeClosed(id), "Lapsed: the challenged verdict is restored exactly and the bond returned.");
-      break;
-    case "settle":
-      body = simple("Settle", "settle", settled(id), "Settled: the ledger reflects the verdict; payees claim from it.");
-      break;
-    case "reclaim":
-      body = simple("Reclaim for the funder", "reclaim", reclaimed(id), `Reclaimed: ${formatGen(reward)} GEN is back in the funder's ledger.`);
-      break;
-    case "claim":
-      body = (
+      return (
         <div className="action">
-          <p className="muted">{action.why}</p>
-          <div className="action-row">
+          <p>{action.why}</p>
+          {simple("cancel", `This withdraws draft agreement ${n}. It holds nothing, and nobody is owed anything.`, cancelled(id), "Cancelled, finalized. The draft held nothing.")}
+        </div>
+      );
+    case "submit":
+      return (
+        <div className="action">
+          <p>{action.why}</p>
+          <SubmitForm ag={ag} busy={busy} run={run} />
+        </div>
+      );
+    case "adjudicate":
+      return (
+        <div className="action">
+          <p>{action.why}</p>
+          {simple("adjudicate",
+            `This puts evidence version ${ag.evidence_version} of agreement ${n} to the panel. Every validator fetches each page itself; the round takes a minute or two of consensus. No GEN is sent.`,
+            adjudicationRecorded(id, ag.evidence_version),
+            "The panel has judged; the verdict is recorded and pending its finality window.")}
+        </div>
+      );
+    case "promote":
+      return (
+        <div className="action">
+          <p>{action.why}</p>
+          {simple("promote",
+            `This promotes the recorded verdict on agreement ${n} into its state. An inconclusive verdict returns the agreement to funded; a conclusive one opens the challenge window. No GEN is sent.`,
+            promoted(id), "Promoted: the recorded verdict is now the agreement's state.")}
+        </div>
+      );
+    case "challenge":
+      return (
+        <div className="action">
+          <p>{action.why}</p>
+          <ChallengeForm ag={ag} judged={judged} bond={bond} busy={busy} run={run} />
+        </div>
+      );
+    case "re_adjudicate":
+      return (
+        <div className="action">
+          <p>{action.why}</p>
+          {simple("re_adjudicate",
+            `This runs the second panel on agreement ${n}. It re-reads the recorded bytes of round ${ag.challenged_version} and fetches only the page the challenger added. The bond follows whether the verdict or figure changes. No GEN is sent.`,
+            challengeClosed(id), "Re-judged: the challenge is concluded and the new verdict is pending its finality window.")}
+        </div>
+      );
+    case "lapse":
+      return (
+        <div className="action">
+          <p>{action.why}</p>
+          {simple("lapse",
+            `This lapses the stale challenge on agreement ${n}: the challenged verdict is restored exactly and the bond returns to the challenger. No GEN is sent.`,
+            challengeClosed(id), "Lapsed: the challenged verdict is restored exactly and the bond returned.")}
+        </div>
+      );
+    case "settle":
+      return (
+        <div className="action">
+          <p>{action.why}</p>
+          {simple("settle",
+            `This settles agreement ${n} by the standing verdict, in one call. ${fundingMath(ag)} Payees claim from their ledger afterwards. No GEN is sent.`,
+            settled(id), "Settled: the ledger reflects the verdict; payees claim from it.")}
+        </div>
+      );
+    case "reclaim":
+      return (
+        <div className="action">
+          <p>{action.why}</p>
+          {simple("reclaim",
+            `This returns the ${rewardGen} GEN reward of agreement ${n} to the funder's ledger. Nothing was proven inside the grace. No GEN is sent by you.`,
+            reclaimed(id), `Reclaimed: ${rewardGen} GEN is back in the funder's ledger.`)}
+        </div>
+      );
+    case "claim":
+      return (
+        <div className="action">
+          <p>{action.why}</p>
+          <SimpleAction
+            kind="claim" ag={ag} amount={`${formatGen(claimable)} GEN`}
+            review={`This pays your wallet ${formatGen(claimable)} GEN from the contract's ledger. The ledger is zeroed first, and the transfer rides the transaction's finality.`}
+            predicate={claimDrained(address)}
+            confirmed="Claimed: the transfer rides the transaction's finality and lands with it."
+            busy={busy} needsWallet={needsWallet} args={[]} run={run}
+          />
+        </div>
+      );
+    case "wait":
+      return (
+        <div className="action">
+          <p>
+            Nothing is legal here until {formatStamp(action.until)}, {formatRelative(action.until, now)}.
+          </p>
+          <p>{action.why}</p>
+        </div>
+      );
+    default:
+      return <div className="action"><p>{action.why}</p></div>;
+  }
+}
+
+function railTitle(action: NextAction): string {
+  if (action.kind === "wait") return "Wait";
+  if (action.kind === "none") return "Closed";
+  return actionVerb(action.kind);
+}
+
+function ActionRail({
+  ag, action, address, claimable, judged, busy, run, tx,
+}: {
+  ag: Agreement;
+  action: NextAction;
+  address: string;
+  claimable: string;
+  judged: Package | null;
+  busy: boolean;
+  run: RunFn;
+  tx: TxProgress | null;
+}) {
+  // On a narrow screen the rail is fixed to the bottom and opens on demand;
+  // on desktop the toggle is hidden by CSS and the body is always shown.
+  const [open, setOpen] = useState(false);
+  const showSecondaryClaim = action.kind !== "claim" && !!address && BigInt(claimable) > 0n;
+  const price =
+    action.kind === "fund" ? `${formatGen(ag.max_reward_atto)} GEN`
+    : action.kind === "challenge" ? `bond ${formatGen(ag.challenge_bond_atto)} GEN`
+    : action.kind === "claim" ? `${formatGen(claimable)} GEN`
+    : action.kind === "wait" ? formatStamp(action.until)
+    : action.kind === "none" ? ""
+    : "fee only";
+
+  return (
+    <aside className={open ? "rail open" : "rail"} aria-label="Next step">
+      <div className="rail-head">
+        <div>
+          <p className="eyebrow">Next step</p>
+          <h2 className="heading-sm rail-title">
+            {railTitle(action)}
+            {price ? <span className="rail-price">{price}</span> : null}
+          </h2>
+        </div>
+        <button type="button" className="pill quiet rail-toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+          {open ? "Hide" : "Show"}
+        </button>
+      </div>
+      <div className="rail-body">
+        <ActionBody
+          ag={ag}
+          action={action}
+          address={address}
+          claimable={claimable}
+          judged={judged}
+          busy={busy}
+          run={run}
+        />
+        {showSecondaryClaim && (
+          <div className="action-row rail-secondary">
             <button
-              className="pill"
+              className="pill quiet"
               disabled={busy}
               onClick={() => void run("claim", [], 0n, claimDrained(address), "Claimed: the transfer rides the transaction's finality and lands with it.")}
             >
-              Claim {formatGen(claimable)} GEN
+              Claim <span className="amount">{formatGen(claimable)} GEN</span>
             </button>
-            <span className="price">pays this wallet <span className="figure">{formatGen(claimable)} GEN</span></span>
+            <span className="price">this wallet&apos;s balance across every agreement</span>
           </div>
-        </div>
-      );
-      break;
-    case "wait":
-      body = (
-        <div className="action">
-          <p>
-            Nothing is legal here until <span className="mono">{formatStamp(action.until)}</span>.
-          </p>
-          <p className="muted">{action.why}</p>
-        </div>
-      );
-      break;
-    default:
-      body = <p className="muted">{action.why}</p>;
-  }
-
-  const showSecondaryClaim = action.kind !== "claim" && address && BigInt(claimable) > 0n;
-
-  return (
-    <>
-      {body}
-      {showSecondaryClaim && (
-        <div className="action-row" style={{ marginTop: 20 }}>
-          <button
-            className="pill quiet"
-            disabled={busy}
-            onClick={() => void run("claim", [], 0n, claimDrained(address), "Claimed: the transfer rides the transaction's finality and lands with it.")}
-          >
-            Claim {formatGen(claimable)} GEN
-          </button>
-          <span className="price">this wallet&apos;s ledger balance across every agreement</span>
-        </div>
-      )}
-      <p className="small muted" style={{ marginTop: 20 }}>
-        The contract keeps its own clock; a boundary shown here may be a few minutes off.
-        Every write simulates first, so one the contract would refuse stops before your wallet opens.
-      </p>
-    </>
+        )}
+        <TxFlow p={tx} />
+        <p className="small rail-note">
+          The contract keeps its own clock; a boundary shown here may be a few minutes off.
+          Every write simulates first, so one the contract would refuse stops before your wallet opens.
+        </p>
+      </div>
+    </aside>
   );
 }
 
@@ -751,15 +942,21 @@ export default function Project() {
     [ag, address, now, claimable],
   );
 
+  const rounds = useMemo(
+    () => dossiers.filter((d): d is Dossier => d !== null),
+    [dossiers],
+  );
+  const events = useMemo(() => (ag ? timeline(ag, rounds, now) : []), [ag, rounds, now]);
+
   if (state === "loading") {
-    return <main className="page"><StateNote kind="loading">Reading the agreement from the contract…</StateNote></main>;
+    return <main className="page"><StateNote kind="loading">Reading the agreement from the contract.</StateNote></main>;
   }
   if (state === "missing") {
     return (
       <main className="page">
         <StateNote kind="empty">
-          No agreement <span className="mono">{id}</span> exists on this contract.{" "}
-          <Link href="/projects" className="inline-link">Back to the projects.</Link>
+          No agreement exists at this address on the contract.{" "}
+          <Link href="/projects" className="inline-link">Back to the agreements.</Link>
         </StateNote>
       </main>
     );
@@ -768,7 +965,7 @@ export default function Project() {
     return (
       <main className="page">
         <StateNote kind="unreachable">
-          Studio Next could not be reached, so the agreement cannot be shown right now — the
+          Studio Next could not be reached, so the agreement cannot be shown right now. The
           record has not gone anywhere, and this page keeps retrying. {error}
         </StateNote>
       </main>
@@ -780,10 +977,7 @@ export default function Project() {
   const operator = isOperator(address, ag.operator);
   const funder = isFunder(address, ag.funder);
   const judgedPackage = ag.judged_version > 0 ? packages[ag.judged_version - 1] ?? null : null;
-  const rounds = dossiers
-    .map((d, i) => ({ d, v: i + 1 }))
-    .filter((x): x is { d: Dossier; v: number } => x.d !== null)
-    .reverse();
+  const roundsNewestFirst = [...rounds].reverse();
 
   const paid = (() => {
     const locked = ag.status === "FUNDED" || ag.status === "PENDING_FINALITY" || ag.status === "FINAL";
@@ -794,182 +988,128 @@ export default function Project() {
       return { value: <Gen atto="0" big />, under: `the ${formatGen(ag.refund_atto)} GEN reward returned to the funder` };
     }
     if (locked) return { value: <Gen atto={ag.max_reward_atto} big />, under: "locked in the contract; paid only at settlement" };
-    if (ag.status === "DRAFT") return { value: <span className="big-figure">—</span>, under: "nothing is locked until a funder deposits the reward" };
-    return { value: <span className="big-figure">—</span>, under: "never funded" };
+    if (ag.status === "DRAFT") return { value: <span className="big-word">nothing yet</span>, under: "nothing is locked until a funder deposits the reward" };
+    return { value: <span className="big-word">nothing</span>, under: "never funded" };
   })();
 
+  const provenUnder = judged && ag.verdict === "INCONCLUSIVE"
+    ? `on hold: ${holdSentence(ag.hold_reason)}`
+    : judged
+      ? `the lowest usable independent figure, on evidence version ${ag.judged_version}`
+      : ag.status === "PENDING_FINALITY"
+        ? "a verdict is recorded and pending its finality window"
+        : "nothing judged yet";
+
   return (
-    <main className="page">
-      <div>
-        <p className="eyebrow">{ag.region}</p>
-        <h1 className="heading-lg" style={{ marginTop: 12 }}>{ag.title}</h1>
-        <div style={{ display: "flex", gap: 20, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
-          <StatusChip status={ag.status} terminal={TERMINAL_STATUSES.includes(ag.status)} />
-          {ag.challenge_open && <span className="chip">challenge open</span>}
-          {operator && <span className="chip">you are the operator</span>}
-          {funder && <span className="chip">you are the funder</span>}
-        </div>
-        <details className="technical" style={{ marginTop: 16 }}>
-          <summary>agreement id</summary>
-          <div className="technical-body">{ag.agreement_id}</div>
-        </details>
-      </div>
-
-      <div className="grid three figures">
-        <div>
-          <span className="stat-label">Promised</span>
-          <Figure value={ag.target} unit={ag.unit} big />
-          <span className="under">{ag.metric}</span>
-        </div>
-        <div>
-          <span className="stat-label">Proven</span>
-          <Figure value={proven} unit={ag.unit} big />
-          <span className="under">
-            {judged && ag.verdict === "INCONCLUSIVE"
-              ? `on hold — ${holdSentence(ag.hold_reason)}`
-              : judged
-                ? `the lowest usable independent figure, on evidence v${ag.judged_version}`
-                : ag.status === "PENDING_FINALITY"
-                  ? "a verdict is recorded and pending its finality window"
-                  : "nothing judged yet"}
-          </span>
-        </div>
-        <div>
-          <span className="stat-label">Paid</span>
-          {paid.value}
-          <span className="under">{paid.under}</span>
-        </div>
-      </div>
-      <ProgressBar bps={progressBps(proven ?? 0, ag.target)} label="verified over target" />
-
-      <section className="section">
-        <p className="eyebrow">Impact agreement</p>
-        <dl className="kv">
-          <dt>Outcome</dt>
-          <dd>{ag.metric} — <Figure value={ag.target} unit={ag.unit} /></dd>
-          <dt>Threshold</dt>
-          <dd>
-            {formatBps(ag.threshold_bps)} of the target — at least{" "}
-            <Figure value={Math.ceil((ag.target * ag.threshold_bps) / 10_000)} unit={ag.unit} /> to qualify; below it the whole reward returns
-          </dd>
-          <dt>Corroboration</dt>
-          <dd>
-            {ag.min_independent} independent publisher{ag.min_independent === 1 ? "" : "s"} required to state a usable figure — two pages on one publisher are one voice
-          </dd>
-          <dt>Reward</dt>
-          <dd><Gen atto={ag.max_reward_atto} /> at most; challenge bond <Gen atto={ag.challenge_bond_atto} /></dd>
-          <dt>Deadline</dt>
-          <dd>{deadlineSentence(ag)}</dd>
-          <dt>Windows</dt>
-          <dd>
-            submission grace {formatSpan(ag.submission_grace)} after the deadline — then the funder may reclaim;
-            finality {formatSpan(ag.finality_window)} — a verdict becomes state only after it;
-            challenge {formatSpan(ag.challenge_window)} — a party may challenge inside it, anyone settles after
-          </dd>
-          <dt>Verdict</dt>
-          <dd>{verdictSentence(ag)}</dd>
-        </dl>
-
-        <div>
-          <p className="small muted" style={{ marginBottom: 12 }}>
-            The evidence basis: the only origins the panel may read. Kinds and classes are
-            labels both wallets signed; the panel is told so and judges each page as what it
-            shows itself to be.
-          </p>
-          <div className="tablewrap">
-            <table className="rows">
-              <thead>
-                <tr>
-                  <th>Origin</th>
-                  <th>Agreed kind</th>
-                  <th>Agreed class</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ag.basis.map((b) => (
-                  <tr key={b.origin}>
-                    <td className="mono">{b.origin}</td>
-                    <td>{b.kind.replace(/_/g, " ").toLowerCase()}</td>
-                    <td><BasisClass cls={b.class} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <main className="page detail">
+      <header className="detail-head">
+        <Seal n={ordinalOf(ag.agreement_id)} size="lg" />
+        <div className="detail-title">
+          <p className="eyebrow">{ag.title}</p>
+          <h1 className="heading-lg">{humanTitle(ag)}</h1>
+          <div className="chips">
+            <StatusChip status={ag.status} />
+            {ag.challenge_open && <span className="chip">challenge open</span>}
+            {operator && <span className="chip">you are the operator</span>}
+            {funder && <span className="chip">you are the funder</span>}
           </div>
         </div>
+      </header>
 
-        <details className="technical terms">
-          <summary>open the full text of the terms ({ag.terms_text.length} characters)</summary>
-          <pre>{ag.terms_text}</pre>
-        </details>
-        <details className="technical">
-          <summary>technical record</summary>
-          <div className="technical-body">
-            {`terms sha256    ${ag.terms_sha256}\noperator        ${ag.operator}\nfunder          ${ag.funder || "(not yet funded)"}\nevidence root   ${ag.evidence_root || "(no evidence yet)"}\ndrafted         ${formatStamp(ag.created_epoch)}${ag.funded_epoch ? `\nfunded          ${formatStamp(ag.funded_epoch)}` : ""}`}
-          </div>
-        </details>
-      </section>
+      <div className="detail-grid">
+        <div className="detail-main">
+          <section className="card figures-card">
+            <div className="grid three figures">
+              <div>
+                <span className="stat-label">Promised</span>
+                <Figure value={ag.target} unit={ag.unit} big />
+                <span className="under">{ag.metric}</span>
+              </div>
+              <div>
+                <span className="stat-label">Proven</span>
+                <Figure value={proven} unit={ag.unit} big fallback={judged ? "on hold" : "not yet judged"} />
+                <span className="under">{provenUnder}</span>
+              </div>
+              <div>
+                <span className="stat-label">Paid</span>
+                {paid.value}
+                <span className="under">{paid.under}</span>
+              </div>
+            </div>
+            <ProgressBar bps={progressBps(proven ?? 0, ag.target)} label="verified over target" />
+          </section>
 
-      <section className="section">
-        <p className="eyebrow">Evidence</p>
-        {ag.evidence_version === 0 && (
-          <StateNote kind="empty">
-            No evidence has been filed yet. The operator files a package after the deadline;
-            it may be filed until {formatStamp(ag.deadline_epoch + ag.submission_grace)}.
-          </StateNote>
-        )}
-        {ag.evidence_version > 0 && recordState === "loading" && (
-          <StateNote kind="loading">Reading the evidence record…</StateNote>
-        )}
-        {ag.evidence_version > 0 && recordState === "unreachable" && (
-          <StateNote kind="unreachable">
-            The evidence record could not be read just now; the versions exist on-chain and
-            this page keeps retrying.
-          </StateNote>
-        )}
-        {recordState === "ready" && packages.map((p, i) => (
-          p ? <EvidenceVersion key={i} pkg={p} unit={ag.unit} /> : null
-        ))}
-      </section>
+          <AgreementCard ag={ag} />
 
-      <section className="section">
-        <p className="eyebrow">Adjudication</p>
-        {ag.evidence_version === 0 && (
-          <StateNote kind="empty">No panel round has run: there is no evidence to judge yet.</StateNote>
-        )}
-        {ag.evidence_version > 0 && recordState === "loading" && (
-          <StateNote kind="loading">Reading the dossiers…</StateNote>
-        )}
-        {ag.evidence_version > 0 && recordState === "unreachable" && (
-          <StateNote kind="unreachable">The dossiers could not be read just now; this page keeps retrying.</StateNote>
-        )}
-        {recordState === "ready" && ag.evidence_version > 0 && rounds.length === 0 && (
-          <StateNote kind="empty">
-            No panel round has run yet. Evidence v{ag.evidence_version} is filed; anyone may
-            adjudicate it after the deadline.
-          </StateNote>
-        )}
-        {recordState === "ready" && rounds.map(({ d, v }) => (
-          <Round key={v} d={d} ag={ag} pending={ag.status === "PENDING_FINALITY" && ag.pending_version === v} />
-        ))}
-      </section>
+          <section className="card record">
+            <h2 className="eyebrow">Evidence</h2>
+            {ag.evidence_version === 0 && (
+              <StateNote kind="empty">
+                No evidence has been filed yet. The operator files a package after the deadline;
+                it may be filed until {formatStamp(ag.deadline_epoch + ag.submission_grace)}.
+              </StateNote>
+            )}
+            {ag.evidence_version > 0 && recordState === "loading" && (
+              <StateNote kind="loading">Reading the evidence record.</StateNote>
+            )}
+            {ag.evidence_version > 0 && recordState === "unreachable" && (
+              <StateNote kind="unreachable">
+                The evidence record could not be read just now; the versions exist on-chain and
+                this page keeps retrying.
+              </StateNote>
+            )}
+            {recordState === "ready" && packages.map((p, i) => (
+              p ? <EvidenceVersion key={i} pkg={p} unit={ag.unit} /> : null
+            ))}
+          </section>
 
-      <section className="section">
-        <p className="eyebrow">Funding math</p>
-        <p style={{ maxWidth: "72ch" }}>{fundingMath(ag)}</p>
-        {ag.challenge_open && (
-          <p className="muted" style={{ maxWidth: "72ch" }}>
-            A challenge is open with a {formatGen(ag.challenge_bond_atto)} GEN bond, filed{" "}
-            {formatStamp(ag.challenge_filed_epoch)} by <Addr value={ag.challenger} />. The bond
-            returns to the challenger if the re-read verdict or figure differs; otherwise it goes
-            to the other party.
-          </p>
-        )}
-      </section>
+          <section className="card record">
+            <h2 className="eyebrow">Adjudication</h2>
+            {ag.evidence_version === 0 && (
+              <StateNote kind="empty">No panel round has run: there is no evidence to judge yet.</StateNote>
+            )}
+            {ag.evidence_version > 0 && recordState === "loading" && (
+              <StateNote kind="loading">Reading the dossiers.</StateNote>
+            )}
+            {ag.evidence_version > 0 && recordState === "unreachable" && (
+              <StateNote kind="unreachable">The dossiers could not be read just now; this page keeps retrying.</StateNote>
+            )}
+            {recordState === "ready" && ag.evidence_version > 0 && roundsNewestFirst.length === 0 && (
+              <StateNote kind="empty">
+                No panel round has run yet. Evidence version {ag.evidence_version} is filed; anyone may
+                adjudicate it after the deadline.
+              </StateNote>
+            )}
+            {recordState === "ready" && roundsNewestFirst.map((d) => (
+              <Round
+                key={d.evidence_version}
+                d={d}
+                ag={ag}
+                pending={ag.status === "PENDING_FINALITY" && ag.pending_version === d.evidence_version}
+              />
+            ))}
+          </section>
 
-      <section className="section">
-        <p className="eyebrow">Actions</p>
-        <Actions
+          <section className="card record">
+            <h2 className="eyebrow">Funding math</h2>
+            <p>{fundingMath(ag)}</p>
+            {ag.challenge_open && (
+              <p>
+                A challenge is open with a {formatGen(ag.challenge_bond_atto)} GEN bond, filed{" "}
+                {formatStamp(ag.challenge_filed_epoch)} by {partyWord(ag.challenger, ag)}. The bond
+                returns to the challenger if the re-read verdict or figure differs; otherwise it goes
+                to the other party.
+              </p>
+            )}
+          </section>
+
+          <section className="card record">
+            <h2 className="eyebrow">Activity</h2>
+            <Timeline events={events} now={now} />
+          </section>
+        </div>
+
+        <ActionRail
           ag={ag}
           action={action}
           address={address}
@@ -977,9 +1117,9 @@ export default function Project() {
           judged={judgedPackage}
           busy={busy}
           run={run}
+          tx={tx}
         />
-        <TxFlow p={tx} />
-      </section>
+      </div>
     </main>
   );
 }

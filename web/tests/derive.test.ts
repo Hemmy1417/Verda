@@ -5,8 +5,9 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  deadlineSentence, formatCount, fundingMath, holdSentence, nextAction, payoutPreview,
-  progressBps, verdictSentence, type NextAction, type Viewer,
+  actionMethod, actionVerb, corroborationSentence, deadlineSentence, formatCount, fundingMath,
+  holdSentence, nextAction, payoutPreview, progressBps, thresholdFloor, thresholdSentence,
+  verdictSentence, type ActionKind, type NextAction, type Viewer,
 } from "@/lib/derive";
 import type { AgreementSummary } from "@/lib/types";
 
@@ -120,22 +121,52 @@ describe("deadlineSentence — every deadline with its consequence", () => {
   it("states the deadline, the grace end and what follows each", () => {
     const s = deadlineSentence(mk({ status: "FUNDED" }));
     expect(s).toBe(
-      "Deadline 2027-01-15 08:00 UTC — adjudication opens after it; evidence may be filed until 2027-01-29 08:00 UTC, then the funder may reclaim.",
+      "Deadline 15 Jan 2027, 08:00 UTC. Adjudication opens after it; evidence may be filed until 29 Jan 2027, 08:00 UTC, then the funder may reclaim.",
     );
   });
   it("tells a draft that funding closes at the deadline too", () => {
-    expect(deadlineSentence(mk())).toMatch(/funding closes at it and adjudication opens after it/);
+    expect(deadlineSentence(mk())).toMatch(/Funding closes at it and adjudication opens after it/);
+  });
+});
+
+describe("threshold and corroboration, in words", () => {
+  it("states the threshold as a share and a floor", () => {
+    expect(thresholdFloor(500, 9000)).toBe(450);
+    expect(thresholdFloor(1, 5000)).toBe(1);
+    expect(thresholdSentence(mk())).toBe("90% of the target, at least 450 hectares");
+    expect(thresholdSentence(mk({ target: 1000, threshold_bps: 8550, unit: "trees" }))).toBe("85.5% of the target, at least 855 trees");
+  });
+  it("counts the publishers that must speak", () => {
+    expect(corroborationSentence(mk())).toBe("1 independent publisher must state a figure");
+    expect(corroborationSentence(mk({ min_independent: 2 }))).toBe("2 independent publishers must state a figure");
+  });
+});
+
+describe("the one verb per action", () => {
+  it("names every action with one verb and its contract method", () => {
+    const kinds: ActionKind[] = [
+      "fund", "cancel", "submit", "adjudicate", "promote", "challenge", "re_adjudicate", "lapse", "settle", "reclaim", "claim",
+    ];
+    const verbs = kinds.map(actionVerb);
+    expect(verbs).toEqual([
+      "Fund", "Cancel the draft", "Submit evidence", "Adjudicate", "Promote", "Challenge",
+      "Re-adjudicate", "Lapse the challenge", "Settle", "Reclaim", "Claim",
+    ]);
+    expect(kinds.map(actionMethod)).toEqual([
+      "fund", "cancel_draft", "submit_evidence", "adjudicate", "promote", "challenge",
+      "re_adjudicate", "lapse_challenge", "settle", "reclaim", "claim",
+    ]);
   });
 });
 
 describe("verdictSentence", () => {
   it("says what the standing verdict means for the money", () => {
     expect(verdictSentence(mk({ status: "FINAL", verdict: "QUALIFIED", verified_impact: 460, judged_version: 1 })))
-      .toBe("Qualified on evidence v1 — the lowest usable independent figure is 460 hectares, at or above the 90% threshold of 500 hectares.");
+      .toBe("Qualified on evidence version 1. The lowest usable independent figure is 460 hectares, at or above the 90% threshold of 500 hectares.");
     expect(verdictSentence(mk({ status: "FINAL", verdict: "NOT_QUALIFIED", verified_impact: 300, judged_version: 1 })))
       .toMatch(/below the 90% threshold of 500 hectares, so the whole reward returns to the funder/);
     expect(verdictSentence(mk({ status: "FUNDED", verdict: "INCONCLUSIVE", hold_reason: "EVIDENCE_INSUFFICIENT", judged_version: 1 })))
-      .toBe("Inconclusive on evidence v1 — the record does not establish the outcome for this region and period; nothing moves.");
+      .toBe("Inconclusive on evidence version 1: the record does not establish the outcome for this region and period. Nothing moves.");
   });
   it("names a pending verdict as pending, not as state", () => {
     expect(verdictSentence(mk({ status: "PENDING_FINALITY", pending_version: 1 }))).toMatch(/recorded and pending its finality window/);
@@ -162,7 +193,7 @@ describe("fundingMath — the arithmetic with the real numbers", () => {
   });
   it("says nothing moves on a hold", () => {
     expect(fundingMath(mk({ status: "FUNDED", verdict: "INCONCLUSIVE", hold_reason: "UNCORROBORATED", judged_version: 1, evidence_version: 1 })))
-      .toMatch(/^Nothing moves while the record is on hold — fewer independent publishers/);
+      .toMatch(/^Nothing moves while the record is on hold: fewer independent publishers/);
   });
   it("states the rule before anything is judged", () => {
     expect(fundingMath(mk())).toMatch(/If funded, settlement pays verified \/ 500 × 0\.050 GEN/);
@@ -208,7 +239,7 @@ describe("nextAction — FUNDED", () => {
   it("tells a stranger to wait for the grace to end — the deadline opens nothing to them", () => {
     const early = nextAction(funded, viewer(STRANGER, DEADLINE - 1));
     expect(early).toMatchObject({ kind: "wait", until: graceEnd });
-    expect(early.why).toMatch(/adjudication opens after the deadline 2027-01-15 08:00 UTC/);
+    expect(early.why).toMatch(/adjudication opens after the deadline 15 Jan 2027, 08:00 UTC/);
     expect(nextAction(funded, viewer(FUNDER, DEADLINE + 1))).toMatchObject({ kind: "wait", until: graceEnd });
     expect(nextAction(funded, viewer(null, DEADLINE + 1)).kind).toBe("wait");
   });
@@ -225,7 +256,7 @@ describe("nextAction — FUNDED", () => {
     for (const who of [STRANGER, FUNDER, OPERATOR, null]) {
       const a = nextAction(filed, viewer(who, DEADLINE + 120));
       expect(a.kind, String(who)).toBe("adjudicate");
-      expect(a.why).toMatch(/Evidence v1 is filed and unjudged/);
+      expect(a.why).toMatch(/Evidence version 1 is filed and unjudged/);
     }
   });
   it("prefers adjudicate over reclaim while an unjudged package waits, even past the grace", () => {
@@ -245,7 +276,7 @@ describe("nextAction — FUNDED", () => {
   it("after an INCONCLUSIVE hold the operator may submit again, and the why names the hold", () => {
     const a = nextAction(held, viewer(OPERATOR, DEADLINE + 7200));
     expect(a.kind).toBe("submit");
-    expect(a.why).toMatch(/held v1: the record does not establish the outcome/);
+    expect(a.why).toMatch(/held version 1: the record does not establish the outcome/);
     expect(nextAction(held, viewer(FUNDER, DEADLINE + 7200))).toMatchObject({ kind: "wait", until: graceEnd });
   });
   it("after the grace a held record is reclaimable by anyone", () => {
@@ -346,6 +377,28 @@ describe("nextAction — terminal states and the ledger", () => {
     const funded = mk({ status: "FUNDED", funder: FUNDER });
     expect(kind(nextAction(funded, viewer(FUNDER, DEADLINE + GRACE + 1, 10n ** 18n)))).toBe("reclaim");
     expect(kind(nextAction(mk(), viewer(STRANGER, DEADLINE - 1, 10n ** 18n)))).toBe("fund");
+  });
+  it("never spells an enum or an em dash into a sentence a page shows", () => {
+    const states: AgreementSummary[] = [
+      mk(), mk({ status: "FUNDED", funder: FUNDER }),
+      mk({ status: "FUNDED", funder: FUNDER, evidence_version: 1, judged_version: 1, verdict: "INCONCLUSIVE", hold_reason: "UNCORROBORATED" }),
+      mk({ status: "PENDING_FINALITY", funder: FUNDER, pending_version: 1, pending_until_epoch: DEADLINE + 100 }),
+      mk({ status: "FINAL", funder: FUNDER, verdict: "QUALIFIED", verified_impact: 460, judged_version: 1, evidence_version: 1, challenge_until_epoch: DEADLINE + 200 }),
+      mk({ status: "FINAL", funder: FUNDER, verdict: "NOT_QUALIFIED", verified_impact: 300, judged_version: 1, evidence_version: 1, challenge_until_epoch: DEADLINE + 200, challenge_open: true, challenger: FUNDER, challenged_version: 1, challenge_filed_epoch: DEADLINE + 50 }),
+      settled, mk({ status: "RECLAIMED", funder: FUNDER, refund_atto: REWARD, reclaimed_epoch: DEADLINE + 1 }),
+      mk({ status: "CANCELLED", cancelled_epoch: DEADLINE - 100 }),
+    ];
+    const raw = /[A-Z]{3,}_[A-Z]|—|\bv\d\b/;
+    for (const ag of states) {
+      for (const who of [OPERATOR, FUNDER, STRANGER, null]) {
+        for (const t of [DEADLINE - 3600, DEADLINE + 3600, DEADLINE + 10 * 86_400]) {
+          expect(nextAction(ag, viewer(who, t)).why, `${ag.status} ${who} ${t}`).not.toMatch(raw);
+        }
+      }
+      expect(verdictSentence(ag)).not.toMatch(raw);
+      expect(deadlineSentence(ag)).not.toMatch(raw);
+      expect(fundingMath(ag)).not.toMatch(raw);
+    }
   });
   it("names reclaim and cancel as terminal", () => {
     const reclaimed = mk({ status: "RECLAIMED", funder: FUNDER, refund_atto: REWARD, reclaimed_epoch: DEADLINE + GRACE + 5 });

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { truncAddr } from "../../lib/chain";
 import { useWallet } from "../../lib/wallet";
 
+/** The wallet control: a quiet pill that connects, or the connected address
+ *  with a small menu. The network state lives in the pill beside it. */
 export function WalletButton() {
   const { address, chainOk, connecting, wallets, error, connect, disconnect, switchNetwork } =
     useWallet();
@@ -21,17 +23,15 @@ export function WalletButton() {
   if (address) {
     return (
       <div className="wallet-pop" ref={boxRef}>
-        <a
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            setOpen((v) => !v);
-          }}
-          className={chainOk ? "ghost" : "ghost warn"}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="pill quiet mono"
           title={address}
+          aria-expanded={open}
         >
-          {chainOk ? truncAddr(address) : "wrong network"}
-        </a>
+          {truncAddr(address)}
+        </button>
         {open && (
           <div className="wallet-menu">
             {!chainOk && (
@@ -63,16 +63,14 @@ export function WalletButton() {
 
   return (
     <div className="wallet-pop" ref={boxRef}>
-      <a
-        href="#"
-        className="ghost"
-        onClick={(e) => {
-          e.preventDefault();
-          setOpen((v) => !v);
-        }}
+      <button
+        type="button"
+        className="pill quiet"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
       >
-        {connecting ? "connecting…" : "Connect wallet"}
-      </a>
+        {connecting ? "Connecting" : "Connect wallet"}
+      </button>
       {open && (
         <div className="wallet-menu">
           {wallets.length === 0 && (

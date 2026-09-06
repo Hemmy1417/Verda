@@ -54,19 +54,63 @@ export function formatBps(bps: number): string {
   return `${Number.isInteger(pct) ? pct : pct.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")}%`;
 }
 
-/** Seconds → "52 days" / "3 hours" / "12 min" — the largest useful unit. */
+/** Seconds → "14 days" / "3 hours" / "15 minutes": the largest whole unit
+ *  that reads as a human span. Windows are shown this way everywhere; the
+ *  raw seconds live only in technical folds. */
 export function formatSpan(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   if (s >= 172_800) return `${Math.floor(s / 86_400)} days`;
   if (s >= 86_400) return "1 day";
   if (s >= 7_200) return `${Math.floor(s / 3_600)} hours`;
   if (s >= 3_600) return "1 hour";
-  if (s >= 120) return `${Math.floor(s / 60)} min`;
-  return `${s}s`;
+  if (s >= 120) return `${Math.floor(s / 60)} minutes`;
+  if (s >= 60) return "1 minute";
+  return `${s} seconds`;
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** Epoch → "5 Sep 2026, 13:52 UTC". UTC and a fixed month table so the same
+ *  epoch renders identically on every machine; "not recorded" for zero, the
+ *  contract's value for an event that has not happened. */
 export function formatStamp(epoch: number): string {
-  if (!epoch) return "—";
+  if (!epoch) return "not recorded";
   const d = new Date(epoch * 1000);
-  return d.toISOString().slice(0, 16).replace("T", " ") + " UTC";
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`;
+}
+
+/** Epoch → "5 Sep 2026": the date alone, for columns where the time is noise. */
+export function formatDate(epoch: number): string {
+  if (!epoch) return "not recorded";
+  const d = new Date(epoch * 1000);
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+/** "in 12 minutes" / "3 hours ago" / "now": the distance from `now`, in the
+ *  largest unit that stays honest. Both arguments are epoch seconds. */
+export function formatRelative(epoch: number, now: number): string {
+  const diff = epoch - now;
+  const abs = Math.abs(diff);
+  if (abs < 60) return "now";
+  let n: number;
+  let unit: string;
+  if (abs < 3_600) {
+    n = Math.floor(abs / 60);
+    unit = "minute";
+  } else if (abs < 172_800) {
+    n = Math.floor(abs / 3_600);
+    unit = "hour";
+  } else {
+    n = Math.floor(abs / 86_400);
+    unit = "day";
+  }
+  const span = `${n} ${unit}${n === 1 ? "" : "s"}`;
+  return diff > 0 ? `in ${span}` : `${span} ago`;
+}
+
+/** "5 Sep 2026, 13:52 UTC (in 12 minutes)": the stamp with its distance. */
+export function formatWhen(epoch: number, now: number): string {
+  if (!epoch) return "not recorded";
+  return `${formatStamp(epoch)} (${formatRelative(epoch, now)})`;
 }
