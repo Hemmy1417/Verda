@@ -1,0 +1,747 @@
+/* VERDA — Structured school (Renaissance gallery on putty paper, user-supplied
+   reference): a putty canvas, pure ink, a display serif that appears ONLY at
+   monumental sizes, a quiet grotesk for everything utilitarian, and a mono
+   for the record. No gradients, no shadows, no saturated colour anywhere but
+   the logo. Rooms alternate putty and ink with hard cuts. */
+
+:root {
+  --putty: #c4c3b6;
+  --ink: #000000;
+  --bone: #e7e5e4;
+  --chalk: #ebebeb;
+  --vellum: #dfdcd5;
+  --graphite: #595855;
+  --ash: #808080;
+  --paper: #ffffff;
+  --moss: #56613f; /* the logo, and nothing else */
+
+  --display: var(--font-display), "Playfair Display", Georgia, "Times New Roman", serif;
+  --sans: var(--font-sans), "Hanken Grotesk", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: var(--font-mono), "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --r-card: 9px;
+  --r-pill: 28.8px;
+  --r-link: 2px;
+
+  --measure: 1200px;
+  --pad-x: 24px;
+
+  /* The room contract. Every surface redefines these four so a component
+     dropped into a dark room, a card or a menu picks up the right ink, the
+     right muted ink, the surface behind it, and the rule that divides it. */
+  --fg: var(--ink);
+  --fg-muted: var(--graphite);
+  --surface: var(--putty);
+  --rule: var(--vellum);
+}
+
+* { box-sizing: border-box; }
+html { color-scheme: light; }
+body {
+  margin: 0;
+  background: var(--putty);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; }
+input, textarea, select { font: inherit; color: inherit; }
+h1, h2, h3, h4, p { margin: 0; }
+strong { font-weight: 500; }
+img, svg { max-width: 100%; }
+
+::selection { background: var(--ink); color: var(--paper); }
+:focus-visible { outline: 1.5px solid currentColor; outline-offset: 3px; border-radius: var(--r-link); }
+
+/* ── type scale ─────────────────────────────────────────────────────────────
+   Serif never below 34px except the nav wordmark; utility never above 26px. */
+
+.display {
+  font-family: var(--display);
+  font-weight: 400;
+  /* 374px at the reference width; scales with the viewport so the word is
+     always monumental, and the room that holds it crops what does not fit. */
+  font-size: clamp(112px, 26vw, 374px);
+  line-height: 0.84;
+  letter-spacing: -0.009em; /* -3.37px at 374px */
+}
+.heading-lg {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(38px, 5.2vw, 52px);
+  line-height: 1.0;
+  letter-spacing: -0.009em; /* -0.47px at 52px */
+}
+.heading {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(34px, 4.3vw, 43px);
+  line-height: 1.1;
+  letter-spacing: -0.009em;
+}
+.heading-sm {
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 26px;
+  line-height: 1.33;
+  letter-spacing: -0.01em;
+}
+.subheading {
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.33;
+}
+.body { font-size: 15px; line-height: 1.5; }
+.small { font-size: 12px; line-height: 1.5; }
+.eyebrow {
+  font-size: 12px;
+  line-height: 1.5;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+}
+.muted { color: var(--fg-muted); }
+.faint { color: var(--ash); }
+.mono {
+  font-family: var(--mono);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.figure {
+  font-family: var(--mono);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.big-figure {
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.measure { max-width: 62ch; }
+.stack > * + * { margin-top: 16px; }
+
+/* ── rooms: putty and ink, hard cuts, no rule between them ──────────────── */
+
+.room-light {
+  background: var(--putty);
+  color: var(--ink);
+  --fg: var(--ink);
+  --fg-muted: var(--graphite);
+  --surface: var(--putty);
+  --rule: var(--vellum);
+}
+.room-dark {
+  background: var(--ink);
+  color: var(--paper);
+  --fg: var(--paper);
+  --fg-muted: var(--ash);
+  --surface: var(--ink);
+  --rule: var(--graphite);
+}
+.room-inner {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 72px var(--pad-x);
+}
+
+/* interior pages */
+main.page {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 44px var(--pad-x) 96px;
+}
+.page > * + * { margin-top: 32px; }
+
+/* ── the hero ───────────────────────────────────────────────────────────── */
+
+.hero-top {
+  display: grid;
+  gap: 28px;
+  padding-top: 56px;
+  padding-bottom: 48px;
+}
+.hero-top .heading-lg { max-width: 16ch; }
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+/* The monumental word. The section clips: the word may run past the viewport
+   at any width, and the page never scrolls sideways for it. The negative
+   bottom margin lets the baseline fall under the room's edge — the crop. */
+.wordmark-hero { overflow: hidden; }
+.wordmark-hero .display {
+  display: block;
+  white-space: nowrap;
+  margin: 0 0 -0.1em -0.04em;
+}
+
+/* ── header: mark + wordmark, one text link, the wallet ─────────────────── */
+
+.masthead { background: var(--putty); }
+.masthead-inner {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 22px var(--pad-x);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink);
+}
+.brand svg { display: block; flex: none; }
+.brand-name {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.masthead nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
+}
+
+/* ── controls ───────────────────────────────────────────────────────────── */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 17px;
+  border: 1px solid var(--ink);
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.pill:hover { background: var(--graphite); border-color: var(--graphite); }
+.pill:disabled { opacity: 0.4; cursor: not-allowed; }
+.room-dark .pill { background: var(--paper); border-color: var(--paper); color: var(--ink); }
+.room-dark .pill:hover { background: var(--bone); border-color: var(--bone); }
+/* the quiet pill: same shape, no fill */
+.pill.quiet { background: transparent; color: var(--fg); border-color: var(--fg); }
+.pill.quiet:hover { background: transparent; color: var(--fg-muted); border-color: var(--fg-muted); }
+
+.ghost {
+  display: inline-block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-link);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+.ghost:hover, .ghost.on { text-decoration: underline; }
+.ghost.warn { font-weight: 500; }
+
+.hairline {
+  border: 0;
+  height: 1px;
+  margin: 0;
+  background: var(--rule);
+}
+
+.card {
+  background: var(--bone);
+  color: var(--ink);
+  border-radius: var(--r-card);
+  padding: 24px;
+  min-width: 0;
+  --fg: var(--ink);
+  --fg-muted: var(--graphite);
+  --surface: var(--bone);
+  --rule: var(--vellum);
+}
+
+/* The hexagon indicator: 12px, outlined in the current colour, hollowed by a
+   second hexagon painted in the surface behind it. `.fill` closes it. */
+.hex {
+  display: inline-block;
+  position: relative;
+  width: 12px;
+  height: 12px;
+  flex: none;
+  vertical-align: -1px;
+  background: currentColor;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+.hex::after {
+  content: "";
+  position: absolute;
+  inset: 1.5px;
+  background: var(--surface);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+.hex.fill::after { display: none; }
+
+/* ── the stat pair ──────────────────────────────────────────────────────── */
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.stat-label {
+  font-size: 12px;
+  line-height: 1.5;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+}
+.stat-value {
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--fg);
+}
+.stat-value.mono { font-family: var(--mono); font-weight: 400; }
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 48px;
+}
+
+/* ── tables: comparable rows are tables; figures right-aligned in mono ─── */
+
+.tablewrap { overflow-x: auto; max-width: 100%; }
+table.rows {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+table.rows th {
+  text-align: left;
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+  padding: 10px 16px 10px 0;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+table.rows td {
+  padding: 14px 16px 14px 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+table.rows th:last-child, table.rows td:last-child { padding-right: 0; }
+table.rows tr:last-child td { border-bottom: 0; }
+table.rows .num {
+  text-align: right;
+  font-family: var(--mono);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+table.rows th.num { font-family: var(--sans); }
+table.rows tr.rowlink { cursor: pointer; }
+table.rows tr.rowlink:hover .title { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ── grids: children may always shrink ──────────────────────────────────── */
+
+.grid { display: grid; gap: 24px; }
+.grid > * { min-width: 0; }
+.grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 760px) {
+  .grid.two, .grid.three { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── the record: addresses, chips, notes ────────────────────────────────── */
+
+.addr {
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 12px;
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: bottom;
+}
+.copy-btn {
+  border: 1px solid var(--rule);
+  background: transparent;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 1px 9px;
+  color: var(--fg-muted);
+  margin-left: 6px;
+}
+.copy-btn:hover { border-color: var(--fg); color: var(--fg); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.5;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.note {
+  font-size: 15px;
+  color: var(--fg-muted);
+  padding: 16px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.note.error {
+  color: var(--fg);
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 2px solid var(--fg);
+  padding: 4px 0 4px 16px;
+}
+
+/* ── forms ──────────────────────────────────────────────────────────────── */
+
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field .label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+}
+.field input, .field textarea, .field select {
+  width: 100%;
+  min-width: 0;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--vellum);
+  border-radius: var(--r-link);
+  padding: 10px 12px;
+  font-size: 15px;
+}
+.field textarea {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+  outline: 1px solid var(--ink);
+  outline-offset: -1px;
+}
+.field .hint { font-size: 12px; color: var(--fg-muted); }
+
+/* ── tx flow: the stepper reads as a row of hexagons ────────────────────── */
+
+.txflow {
+  background: var(--bone);
+  color: var(--ink);
+  border-radius: var(--r-card);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  --fg: var(--ink);
+  --fg-muted: var(--graphite);
+  --surface: var(--bone);
+  --rule: var(--vellum);
+}
+.txsteps { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ash);
+}
+.step.done { color: var(--graphite); }
+.step.done .hex { color: var(--ink); }
+.step.done .hex::after { display: none; }
+.step.on { color: var(--ink); font-weight: 500; }
+.step.on .hex { color: var(--ink); }
+.step.on .hex::after { display: none; }
+.step.fail { color: var(--ink); font-weight: 500; }
+.step.fail .hex { color: var(--graphite); }
+.step.fail .hex::after { display: none; }
+.txdetail { font-size: 13px; color: var(--graphite); }
+.txdetail a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ── wallet menu ────────────────────────────────────────────────────────── */
+
+.wallet-pop { position: relative; }
+.wallet-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  background: var(--bone);
+  color: var(--ink);
+  border: 1px solid var(--vellum);
+  border-radius: var(--r-card);
+  min-width: 240px;
+  z-index: 50;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  --fg: var(--ink);
+  --fg-muted: var(--graphite);
+  --surface: var(--bone);
+  --rule: var(--vellum);
+}
+.wallet-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: 0;
+  padding: 10px 12px;
+  border-radius: var(--r-link);
+  font-size: 13px;
+  text-align: left;
+  color: var(--ink);
+}
+.wallet-menu button:hover { background: var(--paper); }
+.wallet-menu button:disabled { color: var(--graphite); cursor: default; }
+.wallet-menu img { width: 18px; height: 18px; }
+
+/* ── footer ─────────────────────────────────────────────────────────────── */
+
+.colophon {
+  background: var(--chalk);
+  color: var(--graphite);
+  font-size: 12px;
+  line-height: 1.5;
+  --fg: var(--ink);
+  --fg-muted: var(--graphite);
+  --surface: var(--chalk);
+  --rule: var(--vellum);
+}
+.colophon-inner {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 28px var(--pad-x) 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+.colophon-inner > * { min-width: 0; }
+.colophon a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ── the record, continued: stamps, bars, urls, sections ───────────────── */
+
+.stamp {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.stamp .hex { align-self: center; }
+
+/* Magnitude is length: a 2px track in the rule colour, an ink fill. */
+.bar {
+  height: 2px;
+  width: 100%;
+  background: var(--rule);
+}
+.bar i { display: block; height: 100%; background: var(--fg); }
+
+/* A url whole in the DOM, truncated by CSS — wider than an address. */
+.url {
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 12px;
+  max-width: 34ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: bottom;
+}
+.digest { max-width: 12ch; }
+
+/* Sections on the project page: an eyebrow title, then the content;
+   hairlines divide them with whitespace before the rule, never a box. */
+.section { padding-top: 32px; }
+.section + .section { border-top: 1px solid var(--rule); margin-top: 32px; }
+.section > .eyebrow { margin-bottom: 20px; }
+.section > * + * { margin-top: 20px; }
+
+/* Key–value rows: a label column and a value column, wrapping at 375px. */
+.kv {
+  display: grid;
+  grid-template-columns: minmax(120px, 200px) minmax(0, 1fr);
+  gap: 10px 24px;
+  margin: 0;
+}
+.kv dt { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted); padding-top: 2px; }
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .kv { grid-template-columns: minmax(0, 1fr); gap: 4px 0; }
+  .kv dd + dt { margin-top: 12px; }
+}
+
+/* The panel's reason, at body size. */
+.reason {
+  margin: 0;
+  padding: 0 0 0 20px;
+  border-left: 2px solid var(--fg);
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 72ch;
+}
+
+/* technical <details>: ids, hashes, full addresses */
+details.technical summary {
+  cursor: pointer;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+  list-style: none;
+}
+details.technical summary::-webkit-details-marker { display: none; }
+details.technical summary::before { content: "+ "; }
+details[open].technical summary::before { content: "− "; }
+details.technical pre,
+details.technical .technical-body {
+  margin: 12px 0 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+details.terms pre {
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 72ch;
+  margin: 16px 0 0;
+}
+
+/* the three big figures */
+.figures .stat-label { margin-bottom: 6px; display: block; }
+.figures .under { display: block; margin-top: 8px; font-size: 12px; color: var(--fg-muted); max-width: 40ch; }
+
+/* actions: the one legal action, its price beside the button */
+.action { display: flex; flex-direction: column; gap: 14px; max-width: 72ch; }
+.action-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.price { font-size: 12px; color: var(--fg-muted); }
+.price .figure { color: var(--fg); }
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 24px;
+}
+.form-grid .wide { grid-column: 1 / -1; }
+@media (max-width: 760px) { .form-grid { grid-template-columns: minmax(0, 1fr); } }
+.problem { color: var(--fg); font-size: 12px; }
+.ok { color: var(--fg-muted); font-size: 12px; }
+.rowform {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) auto;
+  gap: 8px 12px;
+  align-items: start;
+}
+.rowform .field .hint { min-height: 18px; }
+@media (max-width: 560px) { .rowform { grid-template-columns: minmax(0, 1fr); } }
+.linkish {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--fg-muted);
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.linkish:hover { color: var(--fg); }
+.linkish:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* the review card before signing: a bone surface, no border */
+.review { background: var(--bone); border-radius: var(--r-card); padding: 24px; --surface: var(--bone); }
+.review > * + * { margin-top: 16px; }
+
+/* the home page's dark room: three columns, a numeral in a bone circle */
+.how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px 32px; }
+.how > * { min-width: 0; }
+.numeral {
+  width: 200px;
+  height: 200px;
+  max-width: 100%;
+  border-radius: 50%;
+  background: var(--bone);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  --surface: var(--bone);
+}
+.how .subheading { margin-top: 28px; }
+.how p { margin-top: 12px; max-width: 34ch; color: var(--fg-muted); }
+.how .hex { margin-top: 16px; }
+@media (max-width: 760px) { .how { grid-template-columns: minmax(0, 1fr); } }
+
+/* prose pages */
+.prose > * + * { margin-top: 16px; }
+.prose p, .prose li { max-width: 72ch; }
+.prose ul { padding-left: 20px; margin: 0; }
+.prose h2 { margin-top: 40px; }
+.prose a { text-decoration: underline; text-underline-offset: 3px; }
+.prose pre {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 0;
+  overflow-x: auto;
+}
+.inline-link { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ── 375px ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 560px) {
+  :root { --pad-x: 16px; }
+  .masthead-inner { padding: 16px var(--pad-x); }
+  .brand-name { font-size: 20px; }
+  .masthead nav { gap: 16px; }
+  .room-inner { padding: 48px var(--pad-x); }
+  .hero-top { padding-top: 32px; padding-bottom: 36px; gap: 22px; }
+  .stat-row { gap: 18px 28px; }
+  main.page { padding: 28px var(--pad-x) 72px; }
+  .card { padding: 20px; }
+}

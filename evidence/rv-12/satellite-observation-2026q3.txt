@@ -1,0 +1,17 @@
+SATELLITE OBSERVATION SUMMARY
+Polygon: RV-12 (Rio Verde restoration block), Para, Brazil
+Product: Sentinel-2 L2A composite, 10 m resolution, cloud-masked
+Acquisition window: 2026-08-01 to 2026-08-28
+
+RESULT
+Canopy cover above the 30 percent threshold was detected on 410 hectares of
+the 500-hectare polygon RV-12. The remaining 90 hectares read below threshold,
+concentrated in the south-western pasture that was replanted late after the
+2026 flood.
+
+METHOD
+NDVI threshold classification against the 2025-09 baseline; hectare cells
+with more than 30 percent covered area counted; cloud and shadow masked per
+scene.
+
+This summary states a measured result for polygon RV-12 only.

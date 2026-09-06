@@ -1,0 +1,215 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Hemmy1417/Verda/main/web/app/icon.svg" width="140" alt="Verda mark" />
+</p>
+
+# Verda - Outcome-Based Environmental Funding
+
+**Fund outcomes. Verify impact. Pay for what actually happened.**
+
+Environmental money is committed before anyone can verify the outcome, and afterwards "did they restore 500 hectares?" means reading satellite summaries, field audits and project reports that disagree. Verda locks funding against a predefined outcome, has a GenLayer validator panel fetch and read the evidence itself, and lets deterministic contract code turn the verified figure into payment. The panel answers what happened; the contract answers what is owed.
+
+**Contract** v0.1.0: `0x397bd60cF62755C281a9a24C6398a316F7814a5e` on GenLayer Studio Next (chain 61997; deployed source byte-verified against this repository with `node web/scripts/deploy.mjs verify`; the preliminary cut `0x4491…39A2` that ran the first live round is archived in `docs/DEPLOYMENT.md`). Live app: pending the Vercel deployment.
+
+## What it is
+
+- **An Impact Agreement as an instrument** - an operator drafts one measurable outcome (metric, unit, target), a deadline, a qualification threshold, a maximum reward in GEN, the agreement text, and an evidence basis. A funder counter-signs by depositing exactly the reward. Everything freezes under one sha256 at that moment.
+- **An evidence basis, not an evidence list** - the basis names the web origins the panel may read, what kind of source each origin is, and whether both parties regard it as independent of the operator. The operator later submits URLs inside those origins; kind and class are inherited from the basis, never declared by the submitter.
+- **Independence counted per publisher** - two pages on one publisher are one voice. The agreement says how many independent publishers must state a usable figure before money can move, and normalized-URL duplicates are refused at intake.
+- **A panel that reads and code that decides** - the leader and every validator fetch each page themselves and return readings only: the figure the page states, whether it is on scope, whether it is what its label says, whether the record suffices. Pure code inside every validator derives QUALIFIED, NOT_QUALIFIED or INCONCLUSIVE and the verified figure; the model never returns a verdict and never touches an amount.
+- **A record a later panel re-reads** - every round stores the bytes it read with their digest and fetch time. A bonded challenge is judged on those recorded bytes plus, at most, one new source the challenger adds; the second panel is told which is which. Settlement pays verified/target of the reward to the operator and returns the rest to the funder; every hold state has a permissionless exit.
+
+## How it works
+
+**For a project operator**
+
+1. Draft the agreement: outcome, deadline, threshold, reward, terms, and the evidence basis (origins with agreed kinds and classes). Cancel it freely until someone funds it.
+2. Do the work. After the deadline, submit an evidence package: URLs inside the agreed origins plus your own claimed figure (a ceiling on what can be verified, never a floor).
+3. If the panel finds the record insufficient or uncorroborated, the agreement returns to funded and you may submit a better package inside the grace.
+4. After promotion and the challenge window, anyone settles; claim your payout.
+
+**For a funder**
+
+1. Fund a draft you agree with by depositing exactly its maximum reward. Your deposit is the counter-signature; the basis you signed is the only evidence the panel will ever read.
+2. Watch the adjudication. If the verdict is wrong, challenge inside the window with a bond and, if you have one, a new source from inside the basis.
+3. If the operator never proves the outcome, reclaim the reward after the deadline and grace - anyone can trigger it, nobody can block it.
+4. Claim whatever settlement returns to you.
+
+## Verdicts
+
+| Verdict | Meaning | Money |
+|---|---|---|
+| `QUALIFIED` | Independent publishers (as many as the agreement requires) state a usable figure, the figures agree within tolerance, and the lowest of them reaches the threshold share of the target | `verified / target x reward` to the operator; the remainder to the funder |
+| `NOT_QUALIFIED` | The verified figure is below the threshold share of the target | The whole reward returns to the funder |
+| `INCONCLUSIVE` | `EVIDENCE_INSUFFICIENT` (the record does not establish the outcome), `UNCORROBORATED` (too few independent publishers state a usable figure), or `SOURCES_CONTRADICT` (independent figures spread beyond 15%) | Nothing moves; the agreement returns to funded for a new package, or the funder reclaims after the grace |
+
+The verified figure is the lowest usable independent reading, never above the operator's claim, never above the target. Operator-class pages inform the panel and can never raise it.
+
+## Lifecycle
+
+```text
+DRAFT --fund (exact reward)--> FUNDED --submit_evidence--> FUNDED(v1) --adjudicate (after the deadline)--> PENDING_FINALITY
+  \--cancel_draft--> CANCELLED             ^                                                                    |--promote
+                                           | INCONCLUSIVE hold (new package inside the grace)                   v
+FUNDED --reclaim (after deadline + grace)--> RECLAIMED                                                  FINAL --settle (after the challenge window)--> SETTLED
+                                                                                                          |--challenge (bond, one new source)--> re_adjudicate --> PENDING_FINALITY
+                                                                                                          \--lapse_challenge (stale) --> FINAL, snapshot restored
+```
+
+| Status | Who moves it on | If nobody does |
+|---|---|---|
+| `DRAFT` | any funder, or the operator cancels | holds nothing |
+| `FUNDED` | the operator submits; anyone adjudicates after the deadline | anyone reclaims for the funder after deadline + grace |
+| `PENDING_FINALITY` | anyone promotes after the finality window | - |
+| `FINAL` | anyone settles after the challenge window; a party may challenge inside it | - |
+| challenge open | anyone re-adjudicates; anyone lapses it after the stale window | - |
+| `SETTLED` / `RECLAIMED` / `CANCELLED` | terminal; payees claim | - |
+
+## GenLayer consensus functions
+
+| Function | Kind | What runs under consensus |
+|---|---|---|
+| `adjudicate` / `re_adjudicate` | non-deterministic write | Every validator fetches each source itself (a re-adjudication reads the recorded bytes of the challenged round and fetches only the challenger's new source), rebuilds the prompt from the frozen terms and basis, runs the model for readings, validates every field structurally, derives the verdict and figure in pure code, and compares against the leader's packet |
+| `_utc_now` (internal) | non-deterministic read | Three `cdn-cgi/trace` hosts (minimum, mutual divergence refused), an execution-layer block as a floor, two beacon heads as an independent bound in both directions; fails closed to 0, and every timed write refuses without it |
+
+**The equivalence rule.** Pinned exactly: the code-derived verdict, verified figure and hold reason, the evidence flag, every row's url, publisher, kind, class, provenance tag and readability, every independent row's figure, scope and label readings, each row's sha256 covering the exact bytes the leader stored, and the leader's own arithmetic (every validator re-derives the leader's verdict from the leader's rows; a leader whose readings do not produce its verdict is refused). Recorded rows of a challenged round must be byte-identical. Pinned to a bucket: the score (10 points, one adjacent bucket). Free to differ: the reasoning prose, soft conflict codes, readings on operator-class rows, and the excerpt bytes of a freshly fetched page (two honest fetches of a live page differ; the digest binds the record).
+
+**Fail-safe.** A missing reading, a non-boolean, an out-of-range figure, an enum miss or a non-numeric score raises inside the judged block and the round rotates instead of settling. A non-SUFFICIENT record derives INCONCLUSIVE inside the compared block, and the promoter coerces any conclusive verdict over a thin record again at the boundary. A failed round writes nothing; the crank is permissionless.
+
+## Contract
+
+| | |
+|---|---|
+| Network | GenLayer Studio Next |
+| Chain id | 61997 |
+| RPC | `https://studio-next.genlayer.com/api` |
+| Explorer | [studio-next.genlayer.com](https://studio-next.genlayer.com) (the Studio is the explorer; no public block explorer exists) |
+| Address | `0x397bd60cF62755C281a9a24C6398a316F7814a5e` (v0.1.0; preliminary cut `0x4491182451E0Be4F34cdBd2ecFBdfC0cbE2E39A2` archived) |
+| Source | [`contracts/verda.py`](contracts/verda.py) - deployed source byte-verified against this file |
+| Runner | GenVM v0.6, `py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng` |
+
+### Write methods
+
+| Method | Who | Payable | Notes |
+|---|---|---|---|
+| `draft_agreement` | operator | - | outcome, deadline, threshold, reward, windows, terms, evidence basis - hashed together |
+| `cancel_draft` | operator | - | DRAFT only |
+| `fund` | anyone but the operator | exactly the reward | mutual assent; DRAFT -> FUNDED; refused after the deadline |
+| `submit_evidence` | operator | - | a whole package (1-6 URLs inside the basis, claimed figure); at most 4 versions; inside deadline + grace |
+| `adjudicate` | anyone | - | after the deadline; one judgment per version; arms the finality window |
+| `promote` | anyone | - | after the finality window; INCONCLUSIVE returns the agreement to FUNDED |
+| `challenge` | either party | exact bond | 5% of the reward, 0.05 GEN floor; one optional new source inside the basis; snapshots state |
+| `re_adjudicate` | anyone | - | judges recorded bytes + the new source; routes the bond by whether verdict or figure changed |
+| `lapse_challenge` | anyone | - | after 1h stale; restores the snapshot exactly; returns the bond |
+| `settle` | anyone | - | after the challenge window; atomic; pays verified/target of the reward |
+| `reclaim` | anyone | - | after deadline + grace with nothing pending; an unjudged submission gets one finality window of patience |
+| `claim` | anyone with a balance | - | the only external value path; ledger zeroed, then the transfer is emitted |
+
+### Read methods
+
+`get_config` · `get_stats` · `get_agreement` · `get_agreements` (paged, newest first) · `get_agreements_for` · `get_package` · `get_dossier` · `get_claimable`
+
+### Consensus guarantees
+
+- The verdict and the verified figure are derived by identical code inside every validator from readings the equivalence rule constrains - never taken from a model.
+- No model-produced number is multiplied into a transfer: the payout is `verified x reward // target`, with `verified` an agreed integer capped by the claim and the target.
+- The bytes a later panel relies on are digest-bound at judgment time and re-verified before the second round reads them.
+- Wei conservation is a tested invariant: custody always equals locked rewards plus unclaimed ledger balances plus undecided bonds.
+
+## Verified end-to-end
+
+The first panel round on Studio Next, driven against `0x4491182451E0Be4F34cdBd2ecFBdfC0cbE2E39A2` on 2026-09-05 with three wallets (operator `0x86dD…18b5`, funder `0x57a7…657C`, a stranger for the permissionless call):
+
+```text
+draft_agreement    vrd-000001 · 500 hectares · 90.00% threshold · 0.05 GEN reward · deadline set
+                   (the consensus clock's nondeterministic round: three trace edges, a chain floor, two beacon heads)
+fund               0.05 GEN locked by the funder wallet · status FUNDED
+submit_evidence    v1: two URLs on the agreed independent origins that were NOT evidence about the project,
+                   one operator URL that did not resolve · claimed 463
+adjudicate         16 validators · MAJORITY_AGREE · leader SUCCESS
+                   EV-001 readable · figure null · scope false · label false
+                   EV-002 readable · figure null · scope false · label false
+                   EV-003 unreachable
+                   evidence INSUFFICIENT · conflicts SOURCE_MISLABELLED · score 4
+                   derived: INCONCLUSIVE · EVIDENCE_INSUFFICIENT · verified 0
+promote            after the finality window, by a stranger: the hold returned the agreement to FUNDED
+                   (verdict INCONCLUSIVE, hold_reason EVIDENCE_INSUFFICIENT, judged_version 1) — nothing moved
+reclaim            after deadline + grace, by a stranger: RECLAIMED · refund 0.05 GEN to the funder's ledger
+claim              the funder's wallet: claimed_atto 50000000000000000 · ledger 0 · contract custody 0
+                   (the claim transaction carried the simulation-derived allocation for the outgoing transfer)
+```
+
+> "EV-001 and EV-002 are Adjudex product/specification documents, not evidence about Rio Verde restoration block RV-7 in Para, Brazil, and they state no achieved hectares for this project by the deadline. EV-001 is not a satellite-derived measurement and EV-002 is not a third-party assessment of restoration outcomes, so the record does not establish the outcome; EV-003 was unreachable and adds no usable evidence."
+
+That round asserts exactly one thing about the panel: given pages that were not what their agreed labels said, it returned null figures with `scope_ok` and `kind_matches` false and the code held the money. The three-agreement live arc (a QUALIFIED outcome challenged and settled at the lower independent figure, a NOT_QUALIFIED shortfall returning the reward, and an uncorroborated record held and reclaimed) is driven by `web/scripts/arc.mjs` and recorded here when it completes.
+
+## Tests
+
+`python -m pytest tests/direct -q` runs the direct-mode suite against a strict stub of the GenVM SDK: every wall in the contract, every derivation branch, the structural validation of malformed panel answers, the tampered-leader white-box (a wrapped `run_nondet` mutates the leader's packet before the validator sees it), snapshot continuity across a challenge, the clock, and a wei-conservation invariant after every money-moving path. `tests/mutation_sweep.py` breaks one guard at a time in a scratch copy and requires the suite to fail for each; rules guarded twice get a mutant that removes both layers, so a redundant guard cannot masquerade as a pinned one.
+
+## Tech stack
+
+| Layer | Choice |
+|---|---|
+| Contract | Python Intelligent Contract on GenVM v0.6 (`gl.vm.run_nondet`, `gl.nondet.web.render`, `gl.nondet.exec_prompt`) |
+| Chain | GenLayer Studio Next, chain 61997 |
+| Web | Next.js 16 App Router, TypeScript, plain CSS; genlayer-js 2.0.0-rc.1; EIP-6963 wallet discovery |
+| Reads | same-origin `/api/rpc` proxy, allowlisted to one contract's reads and transaction lookups |
+| Writes | wallet-signed; every write simulates first to derive its fee distribution and message allocations |
+| Tests | pytest (direct mode), a mutation sweep, vitest for the web |
+
+## Repository
+
+```text
+contracts/verda.py          the contract
+tests/direct/               direct-mode pytest suite (conftest = the strict SDK stub)
+tests/mutation_sweep.py     guard-by-guard mutation sweep
+evidence/                   the fixture pages the live arc serves (see evidence/README.md)
+web/                        Next.js app, scripts (deploy, verify, arc)
+docs/ARCHITECTURE.md        the mechanism, anchored by symbol
+docs/SECURITY.md            attacks and the symbol that stops each
+docs/DEPLOYMENT.md          the deployment ledger and procedure
+docs/STANDARDS.md           the judge-standards pre-check (S1-S38), by symbol and test
+SPEC.md                     the build specification
+```
+
+## Getting started
+
+```bash
+python -m pytest tests/direct -q
+python tests/mutation_sweep.py
+```
+
+```bash
+cd web
+npx npm@10 install
+cp .env.example .env.local        # the contract address, RPC, chain id, explorer
+npm run dev -- -p 3104
+npm run verify                    # every address surface names the same deployment
+```
+
+Deploying and verifying a contract: `docs/DEPLOYMENT.md`.
+
+## Security
+
+- No owner and no admin key: nobody can move a locked atto, alter a dossier or unblock a settlement.
+- Funding is per agreement, exact, and never pooled; `claim` is the only external value path.
+- The panel reads only origins both wallets signed; URLs are printable ASCII with no fence-forging characters; kind and class are inherited, never declared.
+- Every panel answer is validated structurally before it can touch state, and the verdict is derived in code inside every validator.
+- Details and the test that pins each item: `docs/SECURITY.md`.
+
+## Design notes
+
+- The web app is a gallery on putty paper: a warm `#c4c3b6` canvas, ink and bone surfaces, Playfair Display for the voice and Hanken Grotesk for the utility, DM Mono for the record; no gradients, no shadows, no colour except a moss mark. Sections alternate light rooms and black rooms with hard cuts; the monumental wordmark crops at the viewport.
+- Comparable rows are tables, numbers outweigh their labels, and every deadline is stated with its consequence.
+- "Finalized" appears only when the transaction reports FINALIZED with a successful deciding execution; acceptance is shown as acceptance.
+
+## Honest limitations
+
+- The contract enforces where evidence may come from and counts independence by publisher; it cannot verify that a publisher is independent of the operator in the world. That is what the two parties assert when they sign the basis.
+- The demo's three origins are three CDNs mirroring one commit of this repository, standing in for a satellite provider, an assessor and the operator's site (`evidence/README.md`). The rules run exactly as they would against real publishers; the publishers' independence is not demonstrated by the fixtures.
+- Excerpts are capped at 6000 characters per source; a figure stated only deeper in a very long page is not read.
+- `genvm-lint check` cannot load this runner's SDK; the contract is lint-checked at the AST level and validated by executing on Studio Next.
+
+## Disclaimer
+
+Verda is a hackathon build on a development network. Nothing here is financial, legal or environmental advice, and no real funding has moved through it.
