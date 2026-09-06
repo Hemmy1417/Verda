@@ -200,6 +200,7 @@ Deploying and verifying a contract: `docs/DEPLOYMENT.md`.
 ## Design notes
 
 - The web app is a gallery on putty paper: a warm `#c4c3b6` canvas, ink and bone surfaces, Playfair Display for the voice and Hanken Grotesk for the utility, DM Mono for the record; no gradients, no shadows, no colour except a moss mark. Sections alternate light rooms and black rooms with hard cuts; the monumental wordmark crops at the viewport.
+- The app follows the anatomy of Base-ecosystem apps: a persistent navbar with the network state and wallet, a data-first hero with the live contract card and a Start card, persona cards with numbered steps, row-cards with a numbered seal and a human title, and a detail page with a sticky next-step rail and an activity timeline. Machine values (ids, hashes, URLs, epochs) live only in copy-button technical folds; everything else is a word or a sentence.
 - Comparable rows are tables, numbers outweigh their labels, and every deadline is stated with its consequence.
 - "Finalized" appears only when the transaction reports FINALIZED with a successful deciding execution; acceptance is shown as acceptance.
 
