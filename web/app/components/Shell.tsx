@@ -15,22 +15,15 @@ import { WalletButton } from "./WalletButton";
 const DOCS = "https://github.com/Hemmy1417/Verda/blob/main/docs";
 
 /**
- * "Explorer" links. Studio Next has no public block explorer: the Studio UI
- * is the only place a transaction or an address can be looked at, and it
- * exposes no per-transaction or per-address route we know of. So both helpers
- * resolve to the Studio itself, and every call site shows the hash or address
- * WHOLE beside the link, with copy, for the reader to look up there. The
- * argument is kept so call sites stay honest about what they are linking,
- * and so a real route can be wired here, in one place, if the Studio grows
- * one.
+ * Explorer links into the Studio Next block explorer, which serves per-address
+ * and per-transaction routes. Every call site still shows the hash or address
+ * WHOLE beside the link, with copy, so the record is legible without it.
  */
 export function explorerAddress(addr: string): string {
-  void addr;
-  return GENLAYER_EXPLORER_URL;
+  return `${GENLAYER_EXPLORER_URL}/address/${addr}`;
 }
 export function explorerTx(hash: string): string {
-  void hash;
-  return GENLAYER_EXPLORER_URL;
+  return `${GENLAYER_EXPLORER_URL}/tx/${hash}`;
 }
 
 const NAV: Array<{ href: string; label: string }> = [

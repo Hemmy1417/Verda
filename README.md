@@ -82,7 +82,7 @@ FUNDED --reclaim (after deadline + grace)--> RECLAIMED                          
 | Network | GenLayer Studio Next |
 | Chain id | 61997 |
 | RPC | `https://studio-next.genlayer.com/api` |
-| Explorer | [studio-next.genlayer.com](https://studio-next.genlayer.com) (the Studio is the explorer; no public block explorer exists) |
+| Explorer | [explorer-studio-dev.genlayer.com](https://explorer-studio-dev.genlayer.com/address/0x397bd60cF62755C281a9a24C6398a316F7814a5e) (`/address/<addr>`, `/tx/<hash>`) |
 | Address | `0x397bd60cF62755C281a9a24C6398a316F7814a5e` (v0.1.0; preliminary cut `0x4491182451E0Be4F34cdBd2ecFBdfC0cbE2E39A2` archived) |
 | Source | [`contracts/verda.py`](contracts/verda.py) - deployed source byte-verified against this file |
 | Runner | GenVM v0.6, `py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng` |

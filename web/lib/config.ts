@@ -19,13 +19,12 @@ export const GENLAYER_CHAIN_ID = Number(
 );
 
 /**
- * The Studio UI. Studio Next has no public block explorer: the Studio itself
- * is the only place a transaction or an address can be looked at, and it has
- * no per-transaction route we know of. So every "explorer link" in the app is
- * this root, with the hash or address shown whole beside it.
+ * The Studio Next block explorer. It serves `/address/<addr>` and
+ * `/tx/<hash>` routes (both probed live), so explorer links point at the
+ * exact record; the hash or address is still shown whole beside every link.
  */
 export const GENLAYER_EXPLORER_URL = (
-  process.env.NEXT_PUBLIC_GENLAYER_EXPLORER_URL ?? "https://studio-next.genlayer.com"
+  process.env.NEXT_PUBLIC_GENLAYER_EXPLORER_URL ?? "https://explorer-studio-dev.genlayer.com"
 )
   .trim()
   .replace(/\/+$/, "");

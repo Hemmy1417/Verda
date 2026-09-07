@@ -15,7 +15,8 @@ every surface agrees, so a clean checkout reproduces the judged deployment.
 
 | | |
 |---|---|
-| Studio | https://studio-next.genlayer.com (also the only explorer — there is no public block explorer) |
+| Studio | https://studio-next.genlayer.com |
+| Explorer | https://explorer-studio-dev.genlayer.com (`/address/<addr>`, `/tx/<hash>`) |
 | RPC | `https://studio-next.genlayer.com/api` |
 | Chain id | 61997 (`0xf22d`) |
 | GenVM | v0.6 — the contract pins runner `py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng`, the id the Studio's own example contracts pin |
@@ -66,7 +67,7 @@ endings.
 NEXT_PUBLIC_CONTRACT_ADDRESS=0x397bd60cF62755C281a9a24C6398a316F7814a5e
 NEXT_PUBLIC_GENLAYER_RPC_URL=https://studio-next.genlayer.com/api
 NEXT_PUBLIC_GENLAYER_CHAIN_ID=61997
-NEXT_PUBLIC_GENLAYER_EXPLORER_URL=https://studio-next.genlayer.com
+NEXT_PUBLIC_GENLAYER_EXPLORER_URL=https://explorer-studio-dev.genlayer.com
 ```
 
 The address compiles into the bundle at build time. On Vercel set the
