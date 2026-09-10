@@ -11,8 +11,12 @@
  *                   fact, so the challenger is made whole — and settlement
  *                   pays 460/500 of the reward to the operator, the rest
  *                   back to the funder.
- *   ACT II  rv-12 — NOT_QUALIFIED. 410 of 500 ha is below the 90% bar; the
- *                   whole reward returns to the funder.
+ *   ACT II  rv-12 — the operator is not paid for a figure the independent
+ *                   evidence does not support. The satellite states 410 of
+ *                   500 ha, below the 90% bar; the operator claims 470 on a
+ *                   forecast. Either honest verdict pays the operator nothing:
+ *                   NOT_QUALIFIED refunds at settlement, INCONCLUSIVE holds on
+ *                   the contradiction and the funder reclaims. v0.1.1 held.
  *   ACT III rv-7b — the S34 floor. Only the operator's report is readable;
  *                   the independent URL 404s. The hold is INCONCLUSIVE with
  *                   either honest reason: the panel may call a one-voice
@@ -347,9 +351,13 @@ async function draftFundSubmit(key, title, terms, sources, claimed, extraWalls) 
   return AID;
 }
 
-async function adjudicateAndPromote(AID, expectVerdict, expectVerified, label) {
+async function adjudicateAndPromote(AID, expectVerdict, expectVerified, label, atVersion = null) {
   let ag = await agreement(AID);
-  const version = ag.evidence_version;
+  /* The round being checked, not merely the latest. On a fresh run they are
+     the same. On a RESUME after a challenge they are not: round one is v1 and
+     the latest is v2, and checking round one's 463 against v2's re-adjudicated
+     460 stopped a run whose chain state was already correct and complete. */
+  const version = atVersion ?? ag.evidence_version;
   if (ag.status === "FUNDED" && ag.judged_version < version) {
     await waitUntil(ag.deadline_epoch, `${label}: the deadline (adjudication is judged after the period)`);
     await write(ST, "adjudicate", [AID], 0n, async () => {
@@ -363,7 +371,10 @@ async function adjudicateAndPromote(AID, expectVerdict, expectVerified, label) {
   log(`   panel: ${d.verdict} · verified ${d.verified_impact} · hold ${d.hold_reason || "-"} · evidence ${d.evidence_flag} · score ${d.score}`);
   log(`   reason: ${d.reason}`);
   for (const r of d.rows) log(`   ${r.id} ${r.cls} ${r.kind} ${r.basis} readable=${r.readable} figure=${r.figure} scope=${r.scope_ok} kind_ok=${r.kind_matches} digest=${String(r.digest).slice(0, 12)}`);
-  expect(d.verdict === expectVerdict, `${label}: panel derived ${expectVerdict} (got ${d.verdict}${d.hold_reason ? " · " + d.hold_reason : ""})`);
+  /* An act may accept more than one honest verdict, and must say so by name.
+     The list is the bar: anything outside it fails exactly as before. */
+  const allowed = Array.isArray(expectVerdict) ? expectVerdict : [expectVerdict];
+  expect(allowed.includes(d.verdict), `${label}: panel derived ${allowed.join(" or ")} (got ${d.verdict}${d.hold_reason ? " · " + d.hold_reason : ""})`);
   if (expectVerified !== null) expect(d.verified_impact === expectVerified, `${label}: verified ${expectVerified} (got ${d.verified_impact})`);
   record({ kind: "dossier", aid: AID, version, verdict: d.verdict, verified: d.verified_impact, hold: d.hold_reason, flag: d.evidence_flag, score: d.score, reason: d.reason, rows: d.rows.map((r) => ({ id: r.id, cls: r.cls, basis: r.basis, readable: r.readable, figure: r.figure, scope_ok: r.scope_ok, kind_matches: r.kind_matches, digest: r.digest })) });
 
@@ -405,7 +416,7 @@ async function main() {
       },
     });
 
-  let a = await adjudicateAndPromote(A, "QUALIFIED", 463, "act I round 1");
+  let a = await adjudicateAndPromote(A, "QUALIFIED", 463, "act I round 1", 1);
   if (a.status === "FINAL" && !a.challenge_open && a.judged_version === 1) {
     await wall("settle-inside-challenge-window", ST, "settle", [A]);
     await wall("challenge-wrong-bond", FU, "challenge", [A, "the satellite page counts canopy, the plots say fewer stems survived", JSD("rv-7/independent-assessment-final.txt"), "audit"], BOND - 1n);
@@ -455,19 +466,45 @@ async function main() {
   }
 
   // ═══════════════════════════════ ACT II ════════════════════════════════
-  log("═══ ACT II — rv-12: NOT_QUALIFIED, reward returns ═══");
+  /* ACT II proves ONE property: the operator is not paid for a figure the
+     independent evidence does not support. The operator claims 470; the only
+     independent source, a satellite observation, states 410 — below the 90%
+     bar — and the operator's own report offers a forecast, not an achieved
+     figure.
+
+     Two honest verdicts deliver that property, and the panel has reached
+     each on a live run:
+       NOT_QUALIFIED — it counts the satellite's 410 against the bar and the
+                       claim fails; the funder is refunded at settlement.
+       INCONCLUSIVE  — it will not conclude over the operator-vs-satellite
+                       contradiction, holds the record, and the funder
+                       reclaims after the grace.
+     The v0.1.1 run took the second route: FIGURE_CONTRADICTION, a majority
+     of validators agreeing, no leader rotation. QUALIFIED is not on the list
+     and fails exactly as before, and the money assertion below runs on
+     EVERY route rather than only when settlement happened. */
+  log("═══ ACT II — rv-12: the claim the independent evidence does not support ═══");
   const B = await draftFundSubmit("a2", "Rio Verde restoration — block RV-12", TERMS_RV12,
     [src(RAW("rv-12/satellite-observation-2026q3.txt"), "Satellite observation summary, RV-12, 2026-Q3"),
      src(STAT("rv-12/operator-completion-report.txt"), "Project completion report, RV-12")],
     470, null);
-  let b = await adjudicateAndPromote(B, "NOT_QUALIFIED", 410, "act II");
+  let b = await adjudicateAndPromote(B, ["NOT_QUALIFIED", "INCONCLUSIVE"], null, "act II");
   if (b.status === "FINAL") {
     expect(b.verdict === "NOT_QUALIFIED", "act II: FINAL at NOT_QUALIFIED");
+    expect(b.verified_impact === 410, `act II: the satellite's 410 is the verified figure (got ${b.verified_impact})`);
     await waitUntil(b.challenge_until_epoch, "act II: the challenge window");
     await write(ST, "settle", [B], 0n, async () => (await agreement(B)).status === "SETTLED");
     b = await agreement(B);
+  } else if (b.status === "FUNDED") {
+    expect(b.verdict === "INCONCLUSIVE", `act II: the hold returned the agreement to FUNDED (got ${b.verdict})`);
+    log(`   act II hold reason live: ${b.hold_reason}`);
+    await waitUntil(b.deadline_epoch + W, "act II: the submission grace");
+    await write(ST, "reclaim", [B], 0n, async () => (await agreement(B)).status === "RECLAIMED");
+    b = await agreement(B);
   }
-  if (b.status === "SETTLED") expect(b.payout_atto === "0" && BigInt(b.refund_atto) === REWARD, "act II: nothing to the operator, the whole reward to the funder");
+  expect((b.status === "SETTLED" || b.status === "RECLAIMED")
+      && b.payout_atto === "0" && BigInt(b.refund_atto) === REWARD,
+    `act II: nothing to the operator, the whole reward to the funder (${b.status}, payout ${b.payout_atto}, refund ${b.refund_atto})`);
 
   // ═══════════════════════════════ ACT III ═══════════════════════════════
   log("═══ ACT III — rv-7b: the uncorroborated floor and the reclaim ═══");
@@ -481,15 +518,31 @@ async function main() {
   // first branch), UNCORROBORATED when the publisher count decides. The
   // direct suite pins each branch deterministically; live, the model speaks
   // first.
-  expect(c.status === "FUNDED" && c.verdict === "INCONCLUSIVE"
+  expect(c.verdict === "INCONCLUSIVE"
       && (c.hold_reason === "UNCORROBORATED" || c.hold_reason === "EVIDENCE_INSUFFICIENT"),
-    "act III: the hold returned the agreement to FUNDED with a corroboration-class hold reason");
+    "act III: the floor held — INCONCLUSIVE with a corroboration-class hold reason");
   log(`   act III hold reason live: ${c.hold_reason}`);
-  await wall("reclaim-before-grace", ST, "reclaim", [C]);
-  await waitUntil(c.deadline_epoch + W, "act III: the submission grace");
-  await write(ST, "reclaim", [C], 0n, async () => (await agreement(C)).status === "RECLAIMED");
-  c = await agreement(C);
-  expect(c.status === "RECLAIMED" && BigInt(c.refund_atto) === REWARD, "act III: reclaimed — the reward is on the funder's ledger");
+  if (c.status === "FUNDED") {
+    /* A REFUSAL CAN ONLY BE PROVEN WHILE ITS PRECONDITION HOLDS.
+       This check exists to show a reclaim is refused INSIDE the submission
+       grace. On the v0.1.1 run the laptop stalled for five hours between the
+       deadline and this step, so it ran after the grace had closed — the
+       contract, correctly, allowed the reclaim, and the check both reported
+       "was NOT refused" and sent a real transaction. A refusal test attempted
+       outside its window tests nothing. It now runs only while the window is
+       open, and says so when it cannot. */
+    const graceEnds = Number(c.deadline_epoch) + W;
+    if (Math.floor(Date.now() / 1000) + MARGIN_S < graceEnds) {
+      await wall("reclaim-before-grace", ST, "reclaim", [C]);
+    } else {
+      log("WALL reclaim-before-grace: NOT EXERCISED — the grace had already closed when this step ran, so a reclaim is legitimately allowed and there is no refusal to demonstrate; the refusal is pinned by the direct suite");
+    }
+    await waitUntil(graceEnds, "act III: the submission grace");
+    await write(ST, "reclaim", [C], 0n, async () => (await agreement(C)).status === "RECLAIMED");
+    c = await agreement(C);
+  }
+  expect(c.status === "RECLAIMED" && c.payout_atto === "0" && BigInt(c.refund_atto) === REWARD,
+    `act III: reclaimed — nothing to the operator, the reward on the funder's ledger (${c.status}, payout ${c.payout_atto}, refund ${c.refund_atto})`);
 
   // ═══════════════════════════════ CLAIMS ════════════════════════════════
   log("═══ claims — the only external value path ═══");
@@ -506,7 +559,15 @@ async function main() {
   log(`STATS ${JSON.stringify(stats)}`);
   expect(stats.escrow_atto === "0", "custody is zero: every atto left through claim()");
   record({ kind: "stats", stats });
-  log("ARC COMPLETE — three agreements, three verdict classes, custody zero.");
+  /* The closing line is COUNTED, not written. It used to say "three verdict
+     classes" as a constant, true of the run this arc was designed for
+     (QUALIFIED / NOT_QUALIFIED / INCONCLUSIVE) and false of the v0.1.1 run,
+     where act II held INCONCLUSIVE on a figure contradiction. A summary that
+     can be wrong about its own run is the last thing a reader sees. */
+  const verdicts = [];
+  for (const id of [A, B, C]) verdicts.push((await agreement(id)).verdict);
+  const classes = [...new Set(verdicts)];
+  log(`ARC COMPLETE — ${verdicts.length} agreements (${verdicts.join(", ")}), ${classes.length} verdict class${classes.length === 1 ? "" : "es"}, custody zero.`);
 }
 
 main().catch((err) => {

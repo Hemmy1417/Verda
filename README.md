@@ -83,7 +83,7 @@ FUNDED --reclaim (after deadline + grace)--> RECLAIMED                          
 | Chain id | 61997 |
 | RPC | `https://studio-next.genlayer.com/api` |
 | Explorer | [explorer-studio-dev.genlayer.com](https://explorer-studio-dev.genlayer.com/address/0x3C30a664cc75FF19f3E63A11F59Ca23ec74491e3) (`/address/<addr>`, `/tx/<hash>`) |
-| Address | `0x3C30a664cc75FF19f3E63A11F59Ca23ec74491e3` (v0.1.1; v0.1.0 `0x397bd60cF62755C281a9a24C6398a316F7814a5e` superseded and carries the live record; preliminary cut `0x4491182451E0Be4F34cdBd2ecFBdfC0cbE2E39A2` archived) |
+| Address | `0x3C30a664cc75FF19f3E63A11F59Ca23ec74491e3` (v0.1.1, with its own three-act live arc recorded in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#the-v011-live-record); v0.1.0 `0x397bd60cF62755C281a9a24C6398a316F7814a5e` superseded and carries the original live record; preliminary cut `0x4491182451E0Be4F34cdBd2ecFBdfC0cbE2E39A2` archived) |
 | Source | [`contracts/verda.py`](contracts/verda.py) - deployed source byte-verified against this file |
 | Runner | GenVM v0.6, `py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng` |
 

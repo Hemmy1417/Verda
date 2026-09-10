@@ -1,0 +1,74 @@
+[2026-09-10T13:33:35.427Z] VERDA ARC RESUME — contract 0x3C30a664cc75FF19f3E63A11F59Ca23ec74491e3 — fixtures @442874f89a3703867f31a2234f74da996e8b0ea5
+[2026-09-10T13:33:35.438Z] operator 0x86dDeAFc53B2e194aaD4d74D265ab7Cb741118b5 · funder 0x57a7Dc8Ea2d2De0a5906eB28902b8D677Dfc657C · stranger 0xB66D7Fa5C37B696a78cB7F9B4F8056EF37a4b7e6
+[2026-09-10T13:33:38.695Z] stats at start {"agreements":2,"funded":2,"settled":1,"qualified":1,"paid_atto":"46000000000000000","escrow_atto":"150000000000000000"}
+[2026-09-10T13:33:38.696Z] ═══ ACT I — rv-7: QUALIFIED, challenged, settled ═══
+[2026-09-10T13:33:40.516Z] a1: vrd-000001 — SETTLED — deadline 1789037750
+[2026-09-10T13:33:40.517Z] WALL second-funder: already proven earlier — skipping
+[2026-09-10T13:33:40.518Z] WALL stranger-submits: already proven earlier — skipping
+[2026-09-10T13:33:40.519Z] WALL duplicate-url-normalized: already proven earlier — skipping
+[2026-09-10T13:33:40.520Z] WALL off-basis-origin: already proven earlier — skipping
+[2026-09-10T13:33:40.522Z] WALL operator-only-package: already proven earlier — skipping
+[2026-09-10T13:33:40.523Z] WALL adjudicate-before-deadline: already proven earlier — skipping
+[2026-09-10T13:33:48.289Z]    ok: act I round 1: dossier v1 recorded
+[2026-09-10T13:33:48.296Z]    panel: QUALIFIED · verified 463 · hold - · evidence SUFFICIENT · score 90
+[2026-09-10T13:33:48.297Z]    reason: Source EV-001, an independent satellite observation, clearly states 463 hectares of canopy cover above the 30% threshold within polygon RV-7, matching the agreement's scope and period. The operator's report (EV-002) corroborates the location and work but states no final, verified hectare figure, so it provides context but no quantitative evidence. The record is sufficient as the independent source directly measures the outcome per the terms.
+[2026-09-10T13:33:48.298Z]    EV-001 INDEPENDENT SATELLITE_OBSERVATION FETCHED readable=true figure=463 scope=true kind_ok=true digest=97afbc40e209
+[2026-09-10T13:33:48.299Z]    EV-002 OPERATOR PROJECT_REPORT FETCHED readable=true figure=null scope=true kind_ok=true digest=bbb512681f8a
+[2026-09-10T13:33:48.300Z]    ok: act I round 1: panel derived QUALIFIED (got QUALIFIED)
+[2026-09-10T13:33:48.301Z]    ok: act I round 1: verified 463 (got 463)
+[2026-09-10T13:33:48.302Z]    ok: act I: settled — operator 46000000000000000 atto, funder 4000000000000000 atto
+[2026-09-10T13:33:48.303Z] WALL settle-twice: already proven earlier — skipping
+[2026-09-10T13:33:48.304Z] WALL challenge-after-settlement: already proven earlier — skipping
+[2026-09-10T13:33:48.305Z] ═══ ACT II — rv-12: the claim the independent evidence does not support ═══
+[2026-09-10T13:33:52.653Z] a2: vrd-000002 — PENDING_FINALITY — deadline 1789043034
+[2026-09-10T13:34:00.472Z]    ok: act II: dossier v1 recorded
+[2026-09-10T13:34:00.474Z]    panel: INCONCLUSIVE · verified 0 · hold EVIDENCE_INSUFFICIENT · evidence PARTIAL · score 62
+[2026-09-10T13:34:00.475Z]    reason: EV-001, a genuine satellite observation of polygon RV-12 using Sentinel-2 imagery, states 410 hectares meeting the 30% canopy threshold by the acquisition window ending 2026-08-28, which is the only independent, imagery-derived figure in the record. EV-002 is the operator's own completion report and states 470 hectares planted but gives no verified canopy-cover figure, only a forecast that the south-western area will close during the coming wet season — making that portion a plan rather than an achieved outcome. The operator's claimed figure of 470 hectares contradicts the satellite-verified f
+[2026-09-10T13:34:00.476Z]    EV-001 INDEPENDENT SATELLITE_OBSERVATION FETCHED readable=true figure=410 scope=true kind_ok=true digest=970b0e242b7a
+[2026-09-10T13:34:00.478Z]    EV-002 OPERATOR PROJECT_REPORT FETCHED readable=true figure=null scope=true kind_ok=true digest=4c979565c464
+[2026-09-10T13:34:00.480Z]    ok: act II: panel derived NOT_QUALIFIED or INCONCLUSIVE (got INCONCLUSIVE · EVIDENCE_INSUFFICIENT)
+[2026-09-10T13:34:04.453Z] >> stranger promote("vrd-000002")
+[2026-09-10T13:34:14.878Z]    tx 0xca08d160252b6a509fbfcb0e6bb099ae79ff7e595572844ec96098962d2eb4ce
+[2026-09-10T13:34:59.833Z]    promote: FINALIZED (MAJORITY_AGREE; leader SUCCESS)
+[2026-09-10T13:35:00.846Z]    ok: act II: the hold returned the agreement to FUNDED (got INCONCLUSIVE)
+[2026-09-10T13:35:00.848Z]    act II hold reason live: EVIDENCE_INSUFFICIENT
+[2026-09-10T13:35:04.705Z] >> stranger reclaim("vrd-000002")
+[2026-09-10T13:35:14.616Z]    tx 0x0424704220d9cff268d1471a52c6769474c5d2871ff1b26f9f008a1b66a22091
+[2026-09-10T13:35:59.213Z]    reclaim: FINALIZED (MAJORITY_AGREE; leader SUCCESS)
+[2026-09-10T13:36:00.234Z]    ok: act II: nothing to the operator, the whole reward to the funder (RECLAIMED, payout 0, refund 50000000000000000)
+[2026-09-10T13:36:00.235Z] ═══ ACT III — rv-7b: the uncorroborated floor and the reclaim ═══
+[2026-09-10T13:36:12.278Z] >> operator draft_agreement("Rio Verde restoration — block RV-7 (second operator filing), "Para, Brazil", "hectares of degraded forest restored", "hectares", 500, 9000, 1, "50000000000000000", 1789048368, 900, 900, 900, "IMPACT AGREEMENT - Rio Verde restoration block RV-7, munici, "[{\"kind\":\"SATELLITE_OBSERVATION\",\"origin\":\"raw.githu)
+[2026-09-10T13:36:22.544Z]    tx 0x13ba20f91bb1cb192b17aaee3495da86b7bad61329ff3133bb1e2092b5cf2076
+[2026-09-10T13:37:07.900Z]    draft_agreement: FINALIZED (MAJORITY_AGREE; leader SUCCESS)
+[2026-09-10T13:37:08.848Z] a3: vrd-000003 — DRAFT — deadline 1789048368
+[2026-09-10T13:37:13.041Z] >> funder fund("vrd-000003") value 0.05 GEN
+[2026-09-10T13:37:23.443Z]    tx 0xa56f3e9882a0af38caf7ff43de1092c6073bfa66b98b501a6f25ae51023ce230
+[2026-09-10T13:38:11.683Z]    fund: FINALIZED (MAJORITY_AGREE; leader SUCCESS)
+[2026-09-10T13:38:12.595Z]    ok: vrd-000003 funded by the funder wallet
+[2026-09-10T13:38:16.645Z] >> operator submit_evidence("vrd-000003", 480, "[{\"url\":\"https://raw.githubusercontent.com/Hemmy1417/Ver)
+[2026-09-10T13:38:31.699Z]    tx 0xbe13f52d286b94514330e13e5d20ddcc874901c7eb0fad2f8733d58b9c7b035e
+[2026-09-10T13:39:27.720Z]    submit_evidence: FINALIZED (MAJORITY_AGREE; leader SUCCESS)
+[2026-09-10T13:39:28.727Z]    ok: vrd-000003 evidence v1 on record, claimed 480
+[2026-09-10T13:39:32.610Z] waiting 1126s — act III: the deadline (adjudication is judged after the period)
+[2026-09-10T13:44:32.629Z] waiting 826s — act III: the deadline (adjudication is judged after the period)
+[2026-09-10T13:49:32.658Z] waiting 526s — act III: the deadline (adjudication is judged after the period)
+[2026-09-10T13:54:32.686Z] waiting 226s — act III: the deadline (adjudication is judged after the period)
+[2026-09-10T13:58:21.673Z] >> stranger adjudicate("vrd-000003")
+[2026-09-10T13:58:44.698Z]    tx 0x923e1c4c45f93fadf092ae404038c442e5e5ca67ca2ab7f62d64a790fafc6a08
+[2026-09-10T18:59:40.081Z]    adjudicate: FINALIZED (MAJORITY_AGREE; leader SUCCESS)
+[2026-09-10T18:59:45.221Z]    ok: act III: dossier v1 recorded
+[2026-09-10T18:59:45.225Z]    panel: INCONCLUSIVE · verified 0 · hold EVIDENCE_INSUFFICIENT · evidence INSUFFICIENT · score 20
+[2026-09-10T18:59:45.227Z]    reason: The only reachable source (EV-002) is a PROJECT_REPORT from the OPERATOR class, which cannot establish the outcome independently under the agreement terms. The INDEPENDENT satellite observation source (EV-001) was unreachable, leaving no third-party verification of the restoration figure.
+[2026-09-10T18:59:45.229Z]    EV-001 INDEPENDENT SATELLITE_OBSERVATION FETCHED readable=false figure=null scope=false kind_ok=false digest=e3b0c44298fc
+[2026-09-10T18:59:45.230Z]    EV-002 OPERATOR PROJECT_REPORT FETCHED readable=true figure=480 scope=true kind_ok=true digest=bbb512681f8a
+[2026-09-10T18:59:45.231Z]    ok: act III: panel derived INCONCLUSIVE (got INCONCLUSIVE · EVIDENCE_INSUFFICIENT)
+[2026-09-10T18:59:45.234Z]    ok: act III: verified 0 (got 0)
+[2026-09-10T18:59:48.921Z] >> stranger promote("vrd-000003")
+[2026-09-10T18:59:58.745Z]    tx 0x161d6f39c1c12796077f2fd8899603877b4c132fdb907e0937dbf2947672096d
+[2026-09-10T19:00:43.571Z]    promote: FINALIZED (MAJORITY_AGREE; leader SUCCESS)
+[2026-09-10T19:00:44.505Z]    ok: act III: the hold returned the agreement to FUNDED with a corroboration-class hold reason
+[2026-09-10T19:00:44.507Z]    act III hold reason live: EVIDENCE_INSUFFICIENT
+[2026-09-10T19:00:44.507Z] >> WALL stranger reclaim — expecting refusal (reclaim-before-grace)
+[2026-09-10T19:00:54.718Z]    tx 0x88eb16e10fb3e16b1a0d1f63dfa9098f180687c46839747238678ae6a495b581 (must finalize as ERROR)
+[2026-09-10T19:01:47.637Z]    reclaim: FINALIZED (MAJORITY_AGREE; leader SUCCESS)
+[2026-09-10T19:01:47.638Z] ARC FAILED: WALL reclaim-before-grace: was NOT refused

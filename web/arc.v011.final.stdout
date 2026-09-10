@@ -1,0 +1,60 @@
+[2026-09-10T19:07:48.826Z] VERDA ARC RESUME — contract 0x3C30a664cc75FF19f3E63A11F59Ca23ec74491e3 — fixtures @442874f89a3703867f31a2234f74da996e8b0ea5
+[2026-09-10T19:07:48.833Z] operator 0x86dDeAFc53B2e194aaD4d74D265ab7Cb741118b5 · funder 0x57a7Dc8Ea2d2De0a5906eB28902b8D677Dfc657C · stranger 0xB66D7Fa5C37B696a78cB7F9B4F8056EF37a4b7e6
+[2026-09-10T19:07:51.740Z] stats at start {"agreements":3,"funded":3,"settled":1,"qualified":1,"paid_atto":"46000000000000000","escrow_atto":"200000000000000000"}
+[2026-09-10T19:07:51.742Z] ═══ ACT I — rv-7: QUALIFIED, challenged, settled ═══
+[2026-09-10T19:07:53.689Z] a1: vrd-000001 — SETTLED — deadline 1789037750
+[2026-09-10T19:07:53.691Z] WALL second-funder: already proven earlier — skipping
+[2026-09-10T19:07:53.693Z] WALL stranger-submits: already proven earlier — skipping
+[2026-09-10T19:07:53.695Z] WALL duplicate-url-normalized: already proven earlier — skipping
+[2026-09-10T19:07:53.697Z] WALL off-basis-origin: already proven earlier — skipping
+[2026-09-10T19:07:53.698Z] WALL operator-only-package: already proven earlier — skipping
+[2026-09-10T19:07:53.699Z] WALL adjudicate-before-deadline: already proven earlier — skipping
+[2026-09-10T19:08:01.688Z]    ok: act I round 1: dossier v1 recorded
+[2026-09-10T19:08:01.693Z]    panel: QUALIFIED · verified 463 · hold - · evidence SUFFICIENT · score 90
+[2026-09-10T19:08:01.694Z]    reason: Source EV-001, an independent satellite observation, clearly states 463 hectares of canopy cover above the 30% threshold within polygon RV-7, matching the agreement's scope and period. The operator's report (EV-002) corroborates the location and work but states no final, verified hectare figure, so it provides context but no quantitative evidence. The record is sufficient as the independent source directly measures the outcome per the terms.
+[2026-09-10T19:08:01.695Z]    EV-001 INDEPENDENT SATELLITE_OBSERVATION FETCHED readable=true figure=463 scope=true kind_ok=true digest=97afbc40e209
+[2026-09-10T19:08:01.695Z]    EV-002 OPERATOR PROJECT_REPORT FETCHED readable=true figure=null scope=true kind_ok=true digest=bbb512681f8a
+[2026-09-10T19:08:01.696Z]    ok: act I round 1: panel derived QUALIFIED (got QUALIFIED)
+[2026-09-10T19:08:01.697Z]    ok: act I round 1: verified 463 (got 463)
+[2026-09-10T19:08:01.699Z]    ok: act I: settled — operator 46000000000000000 atto, funder 4000000000000000 atto
+[2026-09-10T19:08:01.700Z] WALL settle-twice: already proven earlier — skipping
+[2026-09-10T19:08:01.701Z] WALL challenge-after-settlement: already proven earlier — skipping
+[2026-09-10T19:08:01.702Z] ═══ ACT II — rv-12: the claim the independent evidence does not support ═══
+[2026-09-10T19:08:05.672Z] a2: vrd-000002 — RECLAIMED — deadline 1789043034
+[2026-09-10T19:08:13.897Z]    ok: act II: dossier v1 recorded
+[2026-09-10T19:08:13.902Z]    panel: INCONCLUSIVE · verified 0 · hold EVIDENCE_INSUFFICIENT · evidence PARTIAL · score 62
+[2026-09-10T19:08:13.903Z]    reason: EV-001, a genuine satellite observation of polygon RV-12 using Sentinel-2 imagery, states 410 hectares meeting the 30% canopy threshold by the acquisition window ending 2026-08-28, which is the only independent, imagery-derived figure in the record. EV-002 is the operator's own completion report and states 470 hectares planted but gives no verified canopy-cover figure, only a forecast that the south-western area will close during the coming wet season — making that portion a plan rather than an achieved outcome. The operator's claimed figure of 470 hectares contradicts the satellite-verified f
+[2026-09-10T19:08:13.903Z]    EV-001 INDEPENDENT SATELLITE_OBSERVATION FETCHED readable=true figure=410 scope=true kind_ok=true digest=970b0e242b7a
+[2026-09-10T19:08:13.904Z]    EV-002 OPERATOR PROJECT_REPORT FETCHED readable=true figure=null scope=true kind_ok=true digest=4c979565c464
+[2026-09-10T19:08:13.906Z]    ok: act II: panel derived NOT_QUALIFIED or INCONCLUSIVE (got INCONCLUSIVE · EVIDENCE_INSUFFICIENT)
+[2026-09-10T19:08:13.908Z]    ok: act II: nothing to the operator, the whole reward to the funder (RECLAIMED, payout 0, refund 50000000000000000)
+[2026-09-10T19:08:13.909Z] ═══ ACT III — rv-7b: the uncorroborated floor and the reclaim ═══
+[2026-09-10T19:08:17.790Z] a3: vrd-000003 — RECLAIMED — deadline 1789048368
+[2026-09-10T19:08:25.788Z]    ok: act III: dossier v1 recorded
+[2026-09-10T19:08:25.793Z]    panel: INCONCLUSIVE · verified 0 · hold EVIDENCE_INSUFFICIENT · evidence INSUFFICIENT · score 20
+[2026-09-10T19:08:25.793Z]    reason: The only reachable source (EV-002) is a PROJECT_REPORT from the OPERATOR class, which cannot establish the outcome independently under the agreement terms. The INDEPENDENT satellite observation source (EV-001) was unreachable, leaving no third-party verification of the restoration figure.
+[2026-09-10T19:08:25.794Z]    EV-001 INDEPENDENT SATELLITE_OBSERVATION FETCHED readable=false figure=null scope=false kind_ok=false digest=e3b0c44298fc
+[2026-09-10T19:08:25.795Z]    EV-002 OPERATOR PROJECT_REPORT FETCHED readable=true figure=480 scope=true kind_ok=true digest=bbb512681f8a
+[2026-09-10T19:08:25.796Z]    ok: act III: panel derived INCONCLUSIVE (got INCONCLUSIVE · EVIDENCE_INSUFFICIENT)
+[2026-09-10T19:08:25.797Z]    ok: act III: verified 0 (got 0)
+[2026-09-10T19:08:25.799Z]    ok: act III: the floor held — INCONCLUSIVE with a corroboration-class hold reason
+[2026-09-10T19:08:25.800Z]    act III hold reason live: EVIDENCE_INSUFFICIENT
+[2026-09-10T19:08:25.801Z]    ok: act III: reclaimed — nothing to the operator, the reward on the funder's ledger (RECLAIMED, payout 0, refund 50000000000000000)
+[2026-09-10T19:08:25.802Z] ═══ claims — the only external value path ═══
+[2026-09-10T19:08:29.669Z]    operator ledger 46000000000000000 atto
+[2026-09-10T19:08:33.839Z] >> operator claim()
+[2026-09-10T19:08:42.719Z]    tx 0xd025c7a650e005a4792282ab1205bcd4a68e0c1688a7cd7f2494085ced40c33c
+[2026-09-10T19:09:17.599Z]    claim: FINALIZED (MAJORITY_AGREE; leader SUCCESS)
+[2026-09-10T19:09:18.588Z]    funder ledger 154000000000000000 atto
+[2026-09-10T19:09:22.449Z] >> funder claim()
+[2026-09-10T19:09:32.097Z]    tx 0xaa843998f9c769de400d78cee9bd7a190668556428d56d8df7434d22329ffe4c
+[2026-09-10T19:10:17.037Z]    claim: FINALIZED (MAJORITY_AGREE; leader SUCCESS)
+[2026-09-10T19:10:17.048Z] >> WALL stranger claim — expecting refusal (claim-nothing)
+[2026-09-10T19:10:18.356Z]    refused pre-flight: Missing or invalid parameters.
+Double check you have provided the correct parameters.
+
+Details: execution failed
+Version: viem@2.56.3
+[2026-09-10T19:10:21.863Z] STATS {"agreements":3,"funded":3,"settled":1,"qualified":1,"paid_atto":"46000000000000000","escrow_atto":"0"}
+[2026-09-10T19:10:21.869Z]    ok: custody is zero: every atto left through claim()
+[2026-09-10T19:10:21.872Z] ARC COMPLETE — three agreements, three verdict classes, custody zero.
