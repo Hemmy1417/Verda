@@ -4,7 +4,8 @@
 
 | version | address | status |
 |---|---|---|
-| v0.1.0 | `0x397bd60cF62755C281a9a24C6398a316F7814a5e` | **current** — deployed 2026-09-06 (tx `0x39e327c1f1e6ca1c5a2631aa3432eff245d296b8f5934def6d24700f6cb81e3f`), source byte-verified against `contracts/verda.py` |
+| v0.1.1 | `0x3C30a664cc75FF19f3E63A11F59Ca23ec74491e3` | **current** — deployed 2026-09-10 (tx `0x967408fe7e0fd9c895cd0df303cb1adad699b97f4252e51ace43578718e5997c`), source byte-verified: live, repository and a clean-clone blob all hash to `659ede9311909ae185c039276efb617298ea642cfa5c8be4aacaf766ec15b853`. Carries the fresh-source provenance fix: a validator refuses any FETCHED excerpt that is not text it fetched itself |
+| v0.1.0 | `0x397bd60cF62755C281a9a24C6398a316F7814a5e` | superseded 2026-09-10 — deployed 2026-09-06 (tx `0x39e327c1f1e6ca1c5a2631aa3432eff245d296b8f5934def6d24700f6cb81e3f`). Validators bound a FETCHED excerpt only by a digest over the leader's own bytes, so a challenge could inherit a fabricated but internally consistent dossier. **Every live act in the README ran on this address** and stays attributed to it: round zero, the payout, the appeal, and the fixture arc. Custody on it is zero |
 | v0.1.0-pre | `0x4491182451E0Be4F34cdBd2ecFBdfC0cbE2E39A2` | superseded — preliminary cut deployed 2026-09-05 (tx `0x5eb7114140758d6fcc6ff2c001441e939344e686115c7b837142618a160d434e`) that ran the first live round and money loop; it lacks two fixes the suite found afterwards (`cancel_draft` reads the clock before writing; `_split_url` ends the authority at the first of `/`, `?`, `#`). Its one agreement `vrd-000001` sits at RECLAIMED, custody zero |
 
 The row marked **current** is the address `web/.env.example`, the CI build
@@ -51,7 +52,7 @@ genlayer schema 0x… --rpc https://studio-next.genlayer.com/api
 ## Verify the bytes
 
 ```bash
-node scripts/deploy.mjs verify 0x397bd60cF62755C281a9a24C6398a316F7814a5e
+node scripts/deploy.mjs verify 0x3C30a664cc75FF19f3E63A11F59Ca23ec74491e3
 ```
 
 Fetches the deployed source from the chain and compares it byte-for-byte with
@@ -64,7 +65,7 @@ endings.
 
 ```
 # web/.env.local (dev) — the same values live in web/.env.example
-NEXT_PUBLIC_CONTRACT_ADDRESS=0x397bd60cF62755C281a9a24C6398a316F7814a5e
+NEXT_PUBLIC_CONTRACT_ADDRESS=0x3C30a664cc75FF19f3E63A11F59Ca23ec74491e3
 NEXT_PUBLIC_GENLAYER_RPC_URL=https://studio-next.genlayer.com/api
 NEXT_PUBLIC_GENLAYER_CHAIN_ID=61997
 NEXT_PUBLIC_GENLAYER_EXPLORER_URL=https://explorer-studio-dev.genlayer.com

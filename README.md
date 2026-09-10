@@ -8,7 +8,7 @@
 
 Environmental money is committed before anyone can verify the outcome, and afterwards "did they restore 500 hectares?" means reading satellite summaries, field audits and project reports that disagree. Verda locks funding against a predefined outcome, has a GenLayer validator panel fetch and read the evidence itself, and lets deterministic contract code turn the verified figure into payment. The panel answers what happened; the contract answers what is owed.
 
-**Contract** v0.1.0: `0x397bd60cF62755C281a9a24C6398a316F7814a5e` on GenLayer Studio Next (chain 61997; deployed source byte-verified against this repository with `node web/scripts/deploy.mjs verify`; the preliminary cut `0x4491…39A2` that ran the first live round is archived in `docs/DEPLOYMENT.md`). Live app: [verda-one.vercel.app](https://verda-one.vercel.app) — production-verified: all routes serve, the same-origin `/api/rpc` proxy refuses non-read methods under Vercel's runtime, and the docket and every agreement page render the full on-chain record, including both adjudication rounds of the challenged agreement with their recorded-versus-new source rows.
+**Contract** v0.1.1: `0x3C30a664cc75FF19f3E63A11F59Ca23ec74491e3` on GenLayer Studio Next (chain 61997; deployed source byte-verified against this repository with `node web/scripts/deploy.mjs verify`). v0.1.1 carries the fresh-source provenance fix. **The live record below ran on v0.1.0**, `0x397bd60cF62755C281a9a24C6398a316F7814a5e`, and is attributed to it; the preliminary cut `0x4491…39A2` is archived in `docs/DEPLOYMENT.md`. Live app: [verda-one.vercel.app](https://verda-one.vercel.app) — production-verified: all routes serve, the same-origin `/api/rpc` proxy refuses non-read methods under Vercel's runtime, and the docket and every agreement page render the full on-chain record, including both adjudication rounds of the challenged agreement with their recorded-versus-new source rows.
 
 ## What it is
 
@@ -71,7 +71,7 @@ FUNDED --reclaim (after deadline + grace)--> RECLAIMED                          
 | `adjudicate` / `re_adjudicate` | non-deterministic write | Every validator fetches each source itself (a re-adjudication reads the recorded bytes of the challenged round and fetches only the challenger's new source), rebuilds the prompt from the frozen terms and basis, runs the model for readings, validates every field structurally, derives the verdict and figure in pure code, and compares against the leader's packet |
 | `_utc_now` (internal) | non-deterministic read | Three `cdn-cgi/trace` hosts (minimum, mutual divergence refused), an execution-layer block as a floor, two beacon heads as an independent bound in both directions; fails closed to 0, and every timed write refuses without it |
 
-**The equivalence rule.** Pinned exactly: the code-derived verdict, verified figure and hold reason, the evidence flag, every row's url, publisher, kind, class, provenance tag and readability, every independent row's figure, scope and label readings, each row's sha256 covering the exact bytes the leader stored, and the leader's own arithmetic (every validator re-derives the leader's verdict from the leader's rows; a leader whose readings do not produce its verdict is refused). Recorded rows of a challenged round must be byte-identical. Pinned to a bucket: the score (10 points, one adjacent bucket). Free to differ: the reasoning prose, soft conflict codes, readings on operator-class rows, and the excerpt bytes of a freshly fetched page (two honest fetches of a live page differ; the digest binds the record).
+**The equivalence rule.** Pinned exactly: the code-derived verdict, verified figure and hold reason, the evidence flag, every row's url, publisher, kind, class, provenance tag and readability, every independent row's figure, scope and label readings, each row's sha256 covering the exact bytes the leader stored, and the leader's own arithmetic (every validator re-derives the leader's verdict from the leader's rows; a leader whose readings do not produce its verdict is refused). Recorded rows of a challenged round must be byte-identical, and a freshly fetched row's excerpt must be text the validator fetched itself — on the same page one excerpt is necessarily a prefix of the other, so an honest longer render agrees and a leader-selected replacement does not. A readable row must carry bytes, since the empty string is a prefix of every page. Pinned to a bucket: the score (10 points, one adjacent bucket). Free to differ: the reasoning prose, soft conflict codes, and readings on operator-class rows. (Before v0.1.1 the fresh excerpt was free, bound only by a digest over the leader's own bytes; that certified nothing about the page, so a challenge could inherit a fabricated but internally consistent dossier.)
 
 **Fail-safe.** A missing reading, a non-boolean, an out-of-range figure, an enum miss or a non-numeric score raises inside the judged block and the round rotates instead of settling. A non-SUFFICIENT record derives INCONCLUSIVE inside the compared block, and the promoter coerces any conclusive verdict over a thin record again at the boundary. A failed round writes nothing; the crank is permissionless.
 
@@ -82,8 +82,8 @@ FUNDED --reclaim (after deadline + grace)--> RECLAIMED                          
 | Network | GenLayer Studio Next |
 | Chain id | 61997 |
 | RPC | `https://studio-next.genlayer.com/api` |
-| Explorer | [explorer-studio-dev.genlayer.com](https://explorer-studio-dev.genlayer.com/address/0x397bd60cF62755C281a9a24C6398a316F7814a5e) (`/address/<addr>`, `/tx/<hash>`) |
-| Address | `0x397bd60cF62755C281a9a24C6398a316F7814a5e` (v0.1.0; preliminary cut `0x4491182451E0Be4F34cdBd2ecFBdfC0cbE2E39A2` archived) |
+| Explorer | [explorer-studio-dev.genlayer.com](https://explorer-studio-dev.genlayer.com/address/0x3C30a664cc75FF19f3E63A11F59Ca23ec74491e3) (`/address/<addr>`, `/tx/<hash>`) |
+| Address | `0x3C30a664cc75FF19f3E63A11F59Ca23ec74491e3` (v0.1.1; v0.1.0 `0x397bd60cF62755C281a9a24C6398a316F7814a5e` superseded and carries the live record; preliminary cut `0x4491182451E0Be4F34cdBd2ecFBdfC0cbE2E39A2` archived) |
 | Source | [`contracts/verda.py`](contracts/verda.py) - deployed source byte-verified against this file |
 | Runner | GenVM v0.6, `py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng` |
 
@@ -117,7 +117,7 @@ FUNDED --reclaim (after deadline + grace)--> RECLAIMED                          
 
 ## Verified end-to-end
 
-**Round zero on the deployment of record**, `0x397bd60cF62755C281a9a24C6398a316F7814a5e`, 2026-09-06, three wallets (operator `0x86dD…18b5`, funder `0x57a7…657C`, a stranger for every permissionless call). The operator filed three readable pages that were not evidence at all (a sibling project's documentation, mirrored on the three agreed origins) under the agreed labels:
+**Round zero on v0.1.0**, `0x397bd60cF62755C281a9a24C6398a316F7814a5e`, 2026-09-06, three wallets (operator `0x86dD…18b5`, funder `0x57a7…657C`, a stranger for every permissionless call). The operator filed three readable pages that were not evidence at all (a sibling project's documentation, mirrored on the three agreed origins) under the agreed labels:
 
 ```text
 draft_agreement    vrd-000001 "Rio Verde restoration, block RV-7 (round zero)" · 500 hectares · 90% · 0.05 GEN
@@ -136,7 +136,7 @@ promote            after the finality window, by a stranger: the hold returned t
 
 That round asserts one thing: pages that are not what their agreed labels say get null figures, `scope_ok` and `kind_matches` false, and the code holds the money.
 
-**The fixture arc, 2026-09-06/07, same deployment** (`web/scripts/arc.mjs`, evidence pinned to commit `442874f8` and fetched by every validator from the three agreed origins; thirteen further walls refused between the acts):
+**The fixture arc, 2026-09-06/07, same deployment (v0.1.0)** (`web/scripts/arc.mjs`, evidence pinned to commit `442874f8` and fetched by every validator from the three agreed origins; thirteen further walls refused between the acts):
 
 ```text
 ACT I — vrd-000006 "Rio Verde restoration, block RV-7" · 500 ha · 90% · 0.05 GEN
