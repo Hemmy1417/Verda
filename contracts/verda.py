@@ -1,7 +1,7 @@
 # v0.3.0
 # { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
 
-# Verda v0.1.0 — GenVM v0.6 runner (GenLayer Studio Next, chain 61997).
+# Verda v0.1.1 — GenVM v0.6 runner (GenLayer Studio Next, chain 61997).
 #
 # VERDA — outcome-based environmental funding.
 #
@@ -1594,6 +1594,36 @@ Respond ONLY with JSON:
                         return False
                     if _as_int(them.get("fetch_epoch"), -1) != me["fetch_epoch"]:
                         return False
+                elif me["readable"] and them.get("readable") is True:
+                    # FRESH-SOURCE PROVENANCE: bind the bytes where they ENTER
+                    # the record, not only where a challenge reuses them.
+                    #
+                    # A FETCHED row's excerpt is stored, sealed by its digest,
+                    # and re-read verbatim by any later challenge as RECORDED.
+                    # The check above only proves the digest covers the
+                    # leader's OWN bytes — self-consistency, which certifies
+                    # nothing about the page. A leader could store a passage no
+                    # other node ever saw, and the challenge after it would
+                    # inherit a fabricated but internally consistent dossier:
+                    # every check it runs would pass, because the only party
+                    # who saw the bytes also wrote them.
+                    #
+                    # So this validator requires the leader's excerpt to be text
+                    # it fetched itself. Both nodes build the excerpt the same
+                    # way — the leading MAX_EXCERPT_CHARS of the same defanged
+                    # page — so on the same page one is necessarily a prefix of
+                    # the other: equal when the renders agree, prefix-compatible
+                    # when one ran longer. Text this node did not fetch
+                    # satisfies neither, and the round is refused.
+                    theirs_x = str(them.get("excerpt", ""))
+                    mine_x = str(me["excerpt"])
+                    # The empty string is a prefix of every page, so a leader
+                    # that marks a row readable and stores NOTHING would pass
+                    # the prefix test for free. Readable means there are bytes.
+                    if not theirs_x:
+                        return False
+                    if not (mine_x.startswith(theirs_x) or theirs_x.startswith(mine_x)):
+                        return False
                 # Readings on INDEPENDENT rows steer the derivation, so they
                 # are agreed exactly; operator rows inform only and stay free.
                 if me["cls"] == "INDEPENDENT":
@@ -1743,7 +1773,7 @@ Respond ONLY with JSON:
         a limit will eventually guess wrong, and the user pays for that in a
         reverted transaction."""
         return json.dumps({
-            "version": "0.1.0",
+            "version": "0.1.1",
             "min_reward_atto": str(MIN_REWARD_ATTO),
             "max_reward_atto": str(MAX_REWARD_ATTO),
             "threshold_bps": [MIN_THRESHOLD_BPS, MAX_THRESHOLD_BPS],

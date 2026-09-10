@@ -840,25 +840,59 @@ def test_validator_refuses_forged_bytes_behind_the_honest_digest(module, c):
     _nothing_written(c, aid)
 
 
-def test_forged_excerpt_behind_its_own_digest_is_endorsed_on_a_fetched_row(module, c):
-    """SPEC section 5 leaves excerpt BYTES free on FETCHED rows — honest
-    fetches of a live page differ — and binds only digest-covers-own-excerpt.
-    The validator's own readings of the honest page bind the money this
-    round; the leader's bytes become the record an appeal re-reads."""
+def test_a_leader_selected_replacement_excerpt_is_refused_on_a_fetched_row(module, c):
+    """Fresh-source provenance: a FETCHED row's bytes become the record every
+    later challenge re-reads, so they cannot be the leader's word alone. A
+    digest over the leader's own bytes proves self-consistency and certifies
+    nothing about the page. This validator fetched the page too, and refuses a
+    passage it never saw — even one sealed by a perfectly coherent digest."""
     aid = _ready(module, c)
     panel_says(answer())
     forged = "Canopy cover detected on 500 hectares."
 
     def forge(v):
         v["rows"][0]["excerpt"] = forged
-        v["rows"][0]["digest"] = module._sha256_hex(forged)
+        v["rows"][0]["digest"] = module._sha256_hex(forged)    # a coherent lie
 
-    assert _tampered_round(module, c, aid, forge) is True
+    assert _tampered_round(module, c, aid, forge) is False
+    # refused outright: no dossier is written, so no challenge can inherit it
+    assert dossier(c, aid, 1) is None
+    conserve(module, c)
+
+
+def test_an_honest_excerpt_that_is_a_prefix_of_the_validators_own_is_endorsed(module, c):
+    """The binding must not punish an honest node whose render ran longer.
+    Both build the excerpt as the leading characters of the same page, so one
+    is necessarily a prefix of the other; that is agreement, not divergence."""
+    aid = _ready(module, c)
+    panel_says(answer())
+
+    def shorten(v):
+        row = v["rows"][0]
+        row["excerpt"] = row["excerpt"][: max(8, len(row["excerpt"]) // 2)]
+        row["digest"] = module._sha256_hex(row["excerpt"])
+
+    assert _tampered_round(module, c, aid, shorten) is True
     d = dossier(c, aid, 1)
     assert _verdict(d) == ("QUALIFIED", 463, "")
-    assert d["rows"][0]["excerpt"] == forged
-    assert d["rows"][0]["digest"] == module._sha256_hex(forged)
     assert module._dossier_intact(d["rows"])
+
+
+def test_a_readable_row_carrying_an_empty_excerpt_is_refused(module, c):
+    """The empty string is a prefix of every page, so without its own guard a
+    leader could mark a row readable, store NOTHING behind sha256(""), and pass
+    the prefix test for free. Readable means there are bytes to bind."""
+    aid = _ready(module, c)
+    panel_says(answer())
+
+    def empty(v):
+        row = v["rows"][0]
+        assert row["readable"] is True
+        row["excerpt"] = ""
+        row["digest"] = module._sha256_hex("")
+
+    assert _tampered_round(module, c, aid, empty) is False
+    assert dossier(c, aid, 1) is None
 
 
 # ── promotion ────────────────────────────────────────────────────────────────

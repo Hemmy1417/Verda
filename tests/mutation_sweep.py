@@ -649,6 +649,20 @@ MUTATIONS = [
        "            if False:\n"
        "                return False")]),
 
+    # Fresh-source provenance: the leader's excerpt must be text THIS validator
+    # fetched. Each guard gets its own mutant so the sweep proves each is pinned
+    # on its own; the empty-string guard exists because the empty string is a
+    # prefix of every page and would otherwise pass the prefix test for free.
+    ("validator: the leader excerpt must be text this validator fetched",
+     "                    if not (mine_x.startswith(theirs_x) or theirs_x.startswith(mine_x)):\n"
+     "                        return False",
+     "                    if False:\n"
+     "                        return False"),
+    ("validator: a readable row may not carry an empty excerpt",
+     "                    if not theirs_x:\n"
+     "                        return False",
+     "                    if False:\n"
+     "                        return False"),
     ("validator: evidence_flag compare dropped",
      "            if mine[\"evidence_flag\"] != theirs.get(\"evidence_flag\"):\n"
      "                return False",

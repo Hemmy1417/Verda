@@ -141,13 +141,34 @@ Payout at settle: `verified × max_reward // target` to the operator,
 remainder to the funder; NOT_QUALIFIED returns everything to the funder (the
 threshold is a cliff by agreement — a funder pays for the outcome).
 
-**Equivalence (S7/S16/S21/S28).** Exact: verdict, verified_impact, hold
+**Equivalence (S7/S16/S21/S28/S39).** Exact: verdict, verified_impact, hold
 reason, evidence flag, per-row url/class/kind/basis/readable, per-row figure /
-scope_ok / kind_matches for INDEPENDENT rows, digest-covers-own-excerpt.
-Re-derived: the leader's verdict from the leader's own rows (a leader whose
-rows do not produce its verdict is refused). Banded: score ±1 bucket of 10.
-Free: reason prose, soft conflicts, operator-row readings, excerpt bytes
-(honest fetches of a live page differ; the digest binds the RECORD).
+scope_ok / kind_matches for INDEPENDENT rows, digest-covers-own-excerpt, and —
+on every readable FETCHED or NEW row — **the excerpt itself, corroborated by
+this validator's own fetch**. Re-derived: the leader's verdict from the
+leader's own rows (a leader whose rows do not produce its verdict is refused).
+Banded: score ±1 bucket of 10. Free: reason prose, soft conflicts,
+operator-row readings.
+
+**Fresh-source provenance.** An earlier version of this spec left excerpt
+bytes free on FETCHED rows, reasoning that honest fetches of a live page differ
+and that the digest binds the record. The digest binds the record only to the
+bytes the LEADER chose: it proves self-consistency and certifies nothing about
+the page. Since a challenge re-reads those bytes as RECORDED, a leader could
+store a passage no other node saw and every later challenge would inherit a
+fabricated but internally consistent dossier.
+
+So the bytes are bound where they enter the record. Both nodes build the
+excerpt as the leading 6000 characters of the same defanged page, so on the
+same page one is necessarily a prefix of the other — equal when the renders
+agree, prefix-compatible when one ran longer. Text the validator did not fetch
+satisfies neither. A readable row must carry bytes: the empty string is a
+prefix of every page and would otherwise pass for free.
+
+The trade-off, stated rather than hidden: a page whose TEXT genuinely changes
+between two nodes' fetches now refuses the round instead of recording one
+node's version. That is the safe direction — a refused round moves nothing and
+can be re-run — and it is the price of a record that proves what was read.
 
 ## 6. Money (S3/S4/S9/S17/S23/S24/S32)
 
